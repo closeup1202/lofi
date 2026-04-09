@@ -1,0 +1,9 @@
+rootProject.name = 'lofi-spring-boot-starter'
+
+include(
+    'lofi-core',
+    'lofi-collector',
+    'lofi-actuator',
+    'lofi-spring-boot-starter',
+    'lofi-cli'
+)

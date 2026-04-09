@@ -1,0 +1,6 @@
+dependencies {
+    api project(':lofi-core')
+    api project(':lofi-collector')
+    api project(':lofi-actuator')
+    annotationProcessor 'org.springframework.boot:spring-boot-autoconfigure-processor'
+}
