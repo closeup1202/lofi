@@ -14,10 +14,12 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+import javax.sql.DataSource;
 import java.io.File;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -41,18 +43,26 @@ class LofiDeployDiffIntegrationTest {
     static class TestConfig {
 
         @Bean
+        public DataSource lofiDataSource() {
+            DriverManagerDataSource dataSource = new DriverManagerDataSource();
+            dataSource.setDriverClassName("org.sqlite.JDBC");
+            dataSource.setUrl("jdbc:sqlite:" + DB_PATH);
+            return dataSource;
+        }
+
+        @Bean
         @Primary
-        public MetricStore testMetricStore(JdbcTemplate jdbcTemplate) {
+        public MetricStore testMetricStore(JdbcTemplate lofiJdbcTemplate) {
             // activeCommit을 참조하는 동적 DeployContext
             return new SqliteMetricStore(
-                    jdbcTemplate,
+                    lofiJdbcTemplate,
                     new DeployContext(activeCommit.get())
             ) {
                 @Override
                 public void save(MethodMetric metric) {
                     // 저장 시점의 activeCommit을 반영
                     SqliteMetricStore store = new SqliteMetricStore(
-                            jdbcTemplate,
+                            lofiJdbcTemplate,
                             new DeployContext(activeCommit.get())
                     );
                     store.save(metric);
@@ -63,7 +73,6 @@ class LofiDeployDiffIntegrationTest {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + DB_PATH);
         registry.add("lofi.commit-hash", () -> BASE_COMMIT);
         registry.add("lofi.buffer.flush-threshold", () -> 1);
         registry.add("lofi.buffer.flush-delay-ms", () -> 100);
