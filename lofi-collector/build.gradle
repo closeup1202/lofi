@@ -1,4 +1,6 @@
 dependencies {
     api project(':lofi-core')
     implementation 'org.springframework.boot:spring-boot-starter-aop'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'org.xerial:sqlite-jdbc:3.45.3.0'
 }

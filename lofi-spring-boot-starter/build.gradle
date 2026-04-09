@@ -2,5 +2,7 @@ dependencies {
     api project(':lofi-core')
     api project(':lofi-collector')
     api project(':lofi-actuator')
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     annotationProcessor 'org.springframework.boot:spring-boot-autoconfigure-processor'
 }
