@@ -25,7 +25,7 @@ public class SqliteMetricStore implements MetricStore {
                         INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ms, recorded_at)
                         VALUES (?, ?, ?, ?, ?)
                         """,
-                deployContext.getCommitHash(),
+                deployContext.commitHash(),
                 metric.className(),
                 metric.methodName(),
                 metric.elapsedMs(),

@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: "jdbc:sqlite::memory:"
+    driver-class-name: org.sqlite.JDBC
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: lofi, lofi-diff
+
+lofi:
+  commit-hash: test-commit-001
+  buffer:
+    flush-threshold: 1
+    flush-delay-ms: 100

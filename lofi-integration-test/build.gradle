@@ -1,0 +1,11 @@
+dependencies {
+    implementation project(':lofi-spring-boot-starter')
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'org.xerial:sqlite-jdbc:3.45.3.0'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+test {
+    useJUnitPlatform()
+}
