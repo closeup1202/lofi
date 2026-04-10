@@ -1,0 +1,17 @@
+{
+  "hints": [
+    {
+      "name": "lofi.store-type",
+      "values": [
+        {
+          "value": "sqlite",
+          "description": "SQLite 파일 기반 저장소 (기본값, ~/.lofi/metrics.db)"
+        },
+        {
+          "value": "in-memory",
+          "description": "인메모리 저장소 (테스트/개발 환경용, 재시작 시 데이터 유실)"
+        }
+      ]
+    }
+  ]
+}

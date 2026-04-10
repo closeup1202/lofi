@@ -47,7 +47,35 @@ export function renderSnapshot(snapshot: DeploySnapshot): void {
     console.log()
     console.log(chalk.bold('스냅샷') + '  ' + chalk.gray(snapshot.commitHash.slice(0, 7)))
     console.log(chalk.gray(LINE))
-    console.log(chalk.gray(`  수집된 메트릭: ${snapshot.metrics.length}건`))
-    console.log(chalk.gray(`  수집 시각: ${snapshot.deployedAt}`))
+    console.log(chalk.gray(`  배포 시각: ${snapshot.deployedAt}`))
+    console.log(chalk.gray(`  수집 메트릭: ${snapshot.metrics.length}건`))
+
+    if (snapshot.metrics.length > 0) {
+        const avgByMethod = new Map<string, { total: number; count: number }>()
+        for (const m of snapshot.metrics) {
+            const key = `${m.className}.${m.methodName}()`
+            const curr = avgByMethod.get(key) ?? { total: 0, count: 0 }
+            avgByMethod.set(key, { total: curr.total + m.elapsedMs, count: curr.count + 1 })
+        }
+
+        const sorted = [...avgByMethod.entries()]
+            .sort((a, b) => (b[1].total / b[1].count) - (a[1].total / a[1].count))
+
+        console.log()
+        console.log(
+            chalk.gray('  메서드'.padEnd(45)) +
+            chalk.gray('평균'.padStart(8)) +
+            chalk.gray('호출'.padStart(6))
+        )
+        console.log(chalk.gray(LINE))
+
+        for (const [sig, { total, count }] of sorted) {
+            const avg = total / count
+            console.log(chalk.gray(
+                `  ${sig.padEnd(44)} ${(avg.toFixed(0) + 'ms').padStart(7)} ${String(count).padStart(4)}회`
+            ))
+        }
+    }
+
     console.log()
 }

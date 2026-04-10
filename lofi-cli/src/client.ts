@@ -41,7 +41,7 @@ export class LofiClient {
 
     async diff(base: string, head: string): Promise<DiffResult> {
         return this.request(() =>
-            axios.get(`${this.baseUrl}/actuator/lofi-diff`, {
+            axios.get(`${this.baseUrl}/actuator/lofiDiff`, {
                 params: { base, head }
             })
         )

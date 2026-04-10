@@ -7,9 +7,4 @@ public record DiffResult(
         String headCommit,
         List<MethodDiff> diffs
 ) {
-    public List<MethodDiff> regressions() {
-        return diffs.stream()
-                .filter(MethodDiff::regressed)
-                .toList();
-    }
 }

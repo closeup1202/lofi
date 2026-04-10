@@ -21,9 +21,10 @@ public class LofiInterceptor {
         this.metricBuffer = metricBuffer;
     }
 
-    @Around("within(@org.springframework.stereotype.Service *)" +
+    @Around("(within(@org.springframework.stereotype.Service *)" +
             " || within(@org.springframework.stereotype.Component *)" +
-            " || within(@org.springframework.stereotype.Repository *)")
+            " || within(@org.springframework.stereotype.Repository *))" +
+            " && !within(io.github.closeup1202.lofi.collector..*)")
     public Object measure(ProceedingJoinPoint pjp) throws Throwable {
         long start = System.currentTimeMillis();
         try {

@@ -10,41 +10,43 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MetricBuffer implements SchedulingConfigurer {
 
-    private final ArrayBlockingQueue<MethodMetric> queue = new ArrayBlockingQueue<>(1000);
+    private final ArrayBlockingQueue<MethodMetric> queue;
+    private final AtomicBoolean flushing = new AtomicBoolean(false);
     private final MetricStore metricStore;
     private final int flushThreshold;
     private final long flushDelayMs;
 
-    public MetricBuffer(MetricStore metricStore, int flushThreshold, long flushDelayMs) {
+    public MetricBuffer(MetricStore metricStore, int flushThreshold, long flushDelayMs, int queueCapacity) {
         this.metricStore = metricStore;
         this.flushThreshold = flushThreshold;
         this.flushDelayMs = flushDelayMs;
+        this.queue = new ArrayBlockingQueue<>(queueCapacity);
     }
 
     public void add(MethodMetric metric) {
-        boolean offered = queue.offer(metric); // 큐에 metric을 넣으려 시도. 성공하면 true, 큐가 꽉 찼으면(1000개) false 반환
+        boolean offered = queue.offer(metric);
         if (!offered) {
             flush();
-            boolean retried = queue.offer(metric);
-            if (!retried) {
-                // TODO: 유실 카운트 로깅 — 나중에 메트릭화 가능
-            }
+            queue.offer(metric); // flush 후에도 실패하면 유실 (TODO: 유실 카운트 로깅)
         }
-        if (queue.size() >= flushThreshold) {
-            flush();
+        if (queue.size() >= flushThreshold && flushing.compareAndSet(false, true)) {
+            try {
+                flush();
+            } finally {
+                flushing.set(false);
+            }
         }
     }
 
     public void flush() {
         List<MethodMetric> batch = new ArrayList<>();
-        // 큐에 있는 모든 메트릭을 한 번에 batch로 옮김. 이 시점부터 큐는 비워지고, 다른 스레드가 새로 add해도 batch에는 안 들어옴
-        // thread-safe하게 동작
         queue.drainTo(batch);
         if (batch.isEmpty()) return;
-        batch.forEach(metricStore::save);
+        metricStore.saveAll(batch);
     }
 
     @Override

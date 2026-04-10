@@ -12,12 +12,12 @@ import java.util.Map;
 
 public class DiffServiceImpl implements DiffService {
 
-    private static final double REGRESSION_THRESHOLD = 0.2;
-
     private final MetricStore metricStore;
+    private final double regressionThreshold;
 
-    public DiffServiceImpl(MetricStore metricStore) {
+    public DiffServiceImpl(MetricStore metricStore, double regressionThreshold) {
         this.metricStore = metricStore;
+        this.regressionThreshold = regressionThreshold;
     }
 
     @Override
@@ -33,8 +33,15 @@ public class DiffServiceImpl implements DiffService {
         headAvg.forEach((signature, headMs) -> {
             double baseMs = baseAvg.getOrDefault(signature, 0.0);
             double deltaMs = headMs - baseMs;
-            boolean regressed = baseMs > 0 && (deltaMs / baseMs) > REGRESSION_THRESHOLD;
+            boolean regressed = baseMs > 0 && (deltaMs / baseMs) > regressionThreshold;
             diffs.add(new MethodDiff(signature, baseMs, headMs, deltaMs, regressed));
+        });
+
+        // base에만 있고 head에서 제거된 메서드
+        baseAvg.forEach((signature, baseMs) -> {
+            if (!headAvg.containsKey(signature)) {
+                diffs.add(new MethodDiff(signature, baseMs, 0.0, -baseMs, false));
+            }
         });
 
         return new DiffResult(baseCommit, headCommit, diffs);

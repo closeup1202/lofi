@@ -1,11 +1,12 @@
 package io.github.closeup1202.lofi.collector.persistence;
 
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class LofiDatabaseInitializer {
+public class LofiDatabaseInitializer implements InitializingBean {
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -13,7 +14,8 @@ public class LofiDatabaseInitializer {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public void initialize() {
+    @Override
+    public void afterPropertiesSet() {
         createLofiDirectory();
         createTable();
         createIndex();

@@ -34,6 +34,17 @@ public class SqliteMetricStore implements MetricStore {
     }
 
     @Override
+    public void saveAll(List<MethodMetric> metrics) {
+        String commitHash = deployContext.commitHash();
+        jdbcTemplate.batchUpdate(
+                "INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ms, recorded_at) VALUES (?, ?, ?, ?, ?)",
+                metrics.stream()
+                        .map(m -> new Object[]{commitHash, m.className(), m.methodName(), m.elapsedMs(), m.recordedAt().toString()})
+                        .toList()
+        );
+    }
+
+    @Override
     public DeploySnapshot snapshot(String commitHash) {
         List<MethodMetric> metrics = jdbcTemplate.query("""
             SELECT class_name, method_name, elapsed_ms, recorded_at
@@ -48,6 +59,12 @@ public class SqliteMetricStore implements MetricStore {
                 ),
                 commitHash
         );
-        return new DeploySnapshot(commitHash, Instant.now(), metrics);
+
+        Instant deployedAt = metrics.stream()
+                .map(MethodMetric::recordedAt)
+                .min(Instant::compareTo)
+                .orElse(Instant.now());
+
+        return new DeploySnapshot(commitHash, deployedAt, metrics);
     }
 }

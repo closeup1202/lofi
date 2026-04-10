@@ -1,7 +1,0 @@
-spring:
-  datasource:
-    url: jdbc:sqlite:${user.home}/.lofi/metrics.db
-    driver-class-name: org.sqlite.JDBC
-
-lofi:
-  commit-hash: ${GIT_COMMIT_HASH:unknown}

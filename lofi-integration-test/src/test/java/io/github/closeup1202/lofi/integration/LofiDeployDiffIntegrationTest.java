@@ -2,6 +2,7 @@ package io.github.closeup1202.lofi.integration;
 
 import io.github.closeup1202.lofi.collector.context.DeployContext;
 import io.github.closeup1202.lofi.collector.persistence.SqliteMetricStore;
+import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import io.github.closeup1202.lofi.core.port.MetricStore;
 import io.github.closeup1202.lofi.integration.fixture.TestApplication;
@@ -53,19 +54,18 @@ class LofiDeployDiffIntegrationTest {
         @Bean
         @Primary
         public MetricStore testMetricStore(JdbcTemplate lofiJdbcTemplate) {
-            // activeCommit을 참조하는 동적 DeployContext
-            return new SqliteMetricStore(
-                    lofiJdbcTemplate,
-                    new DeployContext(activeCommit.get())
-            ) {
+            return new MetricStore() {
                 @Override
                 public void save(MethodMetric metric) {
-                    // 저장 시점의 activeCommit을 반영
-                    SqliteMetricStore store = new SqliteMetricStore(
-                            lofiJdbcTemplate,
-                            new DeployContext(activeCommit.get())
+                    lofiJdbcTemplate.update(
+                            "INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ms, recorded_at) VALUES (?, ?, ?, ?, ?)",
+                            activeCommit.get(), metric.className(), metric.methodName(), metric.elapsedMs(), metric.recordedAt().toString()
                     );
-                    store.save(metric);
+                }
+
+                @Override
+                public DeploySnapshot snapshot(String commitHash) {
+                    return new SqliteMetricStore(lofiJdbcTemplate, new DeployContext(commitHash)).snapshot(commitHash);
                 }
             };
         }
@@ -123,7 +123,7 @@ class LofiDeployDiffIntegrationTest {
     @Test
     @Order(3)
     void 배포_A_B_diff_regression_감지() throws Exception {
-        mockMvc.perform(get("/actuator/lofi-diff")
+        mockMvc.perform(get("/actuator/lofiDiff")
                         .param("base", BASE_COMMIT)
                         .param("head", HEAD_COMMIT))
                 .andExpect(status().isOk())
