@@ -6,14 +6,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class DeployContextTest {
     @Test
-    void 커밋해시가_주입되면_반환한다() {
+    void willReturnRevokedCommitHash() {
         DeployContext context = new DeployContext("a3f9c1");
         assertThat(context.commitHash()).isEqualTo("a3f9c1");
     }
 
     @Test
-    void 커밋해시가_없으면_unknown을_반환한다() {
+    void willReturnUnknownWithoutCommitHash() {
         DeployContext context = new DeployContext("unknown");
+        assertThat(context.commitHash()).isEqualTo("unknown");
+    }
+
+    @Test
+    void willReturnUnknownBlankedCommitHash() {
+        DeployContext context = new DeployContext("");
         assertThat(context.commitHash()).isEqualTo("unknown");
     }
 }

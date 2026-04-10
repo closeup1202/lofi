@@ -1,5 +1,12 @@
 package io.github.closeup1202.lofi.collector.context;
 
-public record DeployContext(String commitHash) {
+import org.springframework.util.StringUtils;
 
+public record DeployContext(String commitHash) {
+    public String commitHash() {
+        if (!StringUtils.hasLength(commitHash)) {
+            return "unknown";
+        }
+        return commitHash;
+    }
 }

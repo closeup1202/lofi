@@ -31,13 +31,21 @@ public class DiffServiceImpl implements DiffService {
         List<MethodDiff> diffs = new ArrayList<>();
 
         headAvg.forEach((signature, headMs) -> {
-            double baseMs = baseAvg.getOrDefault(signature, 0.0);
+            boolean existsInBase = baseAvg.containsKey(signature);
+            double baseMs = existsInBase ? baseAvg.get(signature) : 0.0;
             double deltaMs = headMs - baseMs;
-            boolean regressed = baseMs > 0 && (deltaMs / baseMs) > regressionThreshold;
+            boolean regressed;
+            if (!existsInBase) {
+                regressed = false; // new method, no baseline to compare
+            } else if (baseMs == 0.0) {
+                regressed = headMs > 0; // was 0ms, now has latency
+            } else {
+                regressed = (deltaMs / baseMs) > regressionThreshold;
+            }
             diffs.add(new MethodDiff(signature, baseMs, headMs, deltaMs, regressed));
         });
 
-        // base에만 있고 head에서 제거된 메서드
+        // A method only in base (removed from head)
         baseAvg.forEach((signature, baseMs) -> {
             if (!headAvg.containsKey(signature)) {
                 diffs.add(new MethodDiff(signature, baseMs, 0.0, -baseMs, false));

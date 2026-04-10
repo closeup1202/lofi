@@ -47,10 +47,10 @@ public class SqliteMetricStore implements MetricStore {
     @Override
     public DeploySnapshot snapshot(String commitHash) {
         List<MethodMetric> metrics = jdbcTemplate.query("""
-            SELECT class_name, method_name, elapsed_ms, recorded_at
-            FROM method_metric
-            WHERE commit_hash = ?
-            """,
+                        SELECT class_name, method_name, elapsed_ms, recorded_at
+                        FROM method_metric
+                        WHERE commit_hash = ?
+                        """,
                 (rs, rowNum) -> new MethodMetric(
                         rs.getString("class_name"),
                         rs.getString("method_name"),

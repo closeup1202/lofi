@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import javax.sql.DataSource;
 import java.io.File;
+import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -33,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class LofiDeployDiffIntegrationTest {
 
-    static final String DB_PATH = "/tmp/lofi-test.db";
+    static final String DB_PATH = Path.of(System.getProperty("java.io.tmpdir"), "lofi-test.db").toString();
     static final String BASE_COMMIT = "base-commit-001";
     static final String HEAD_COMMIT = "head-commit-002";
 
@@ -131,7 +132,7 @@ class LofiDeployDiffIntegrationTest {
                 .andExpect(jsonPath("$.headCommit").value(HEAD_COMMIT))
                 .andExpect(jsonPath("$.diffs").isArray())
                 .andExpect(jsonPath(
-                        "$.diffs[?(@.signature == 'TestService.slowMethod()' && @.regressed == true)]"
+                        "$.diffs[?(@.signature == 'io.github.closeup1202.lofi.integration.fixture.TestService.slowMethod()' && @.regressed == true)]"
                 ).exists());
     }
 

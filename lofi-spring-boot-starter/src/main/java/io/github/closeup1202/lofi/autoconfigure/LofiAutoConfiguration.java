@@ -52,8 +52,8 @@ public class LofiAutoConfiguration {
 
     @Bean
     @ConditionalOnProperty(name = "lofi.store-type", havingValue = "sqlite", matchIfMissing = true)
-    public LofiDatabaseInitializer lofiDatabaseInitializer(@Qualifier("lofiJdbcTemplate") JdbcTemplate lofiJdbcTemplate) {
-        return new LofiDatabaseInitializer(lofiJdbcTemplate);
+    public LofiDatabaseInitializer lofiDatabaseInitializer(@Qualifier("lofiJdbcTemplate") JdbcTemplate lofiJdbcTemplate, LofiProperties properties) {
+        return new LofiDatabaseInitializer(lofiJdbcTemplate, properties.retentionCommits());
     }
 
     @Bean

@@ -2,6 +2,8 @@ package io.github.closeup1202.lofi.collector.persistence;
 
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import io.github.closeup1202.lofi.core.port.MetricStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 
@@ -13,6 +15,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MetricBuffer implements SchedulingConfigurer {
+
+    private static final Logger log = LoggerFactory.getLogger(MetricBuffer.class);
 
     private final ArrayBlockingQueue<MethodMetric> queue;
     private final AtomicBoolean flushing = new AtomicBoolean(false);
@@ -31,7 +35,10 @@ public class MetricBuffer implements SchedulingConfigurer {
         boolean offered = queue.offer(metric);
         if (!offered) {
             flush();
-            queue.offer(metric); // flush 후에도 실패하면 유실 (TODO: 유실 카운트 로깅)
+            boolean retried = queue.offer(metric);
+            if (!retried) {
+                log.warn("[lofi] Metric dropped — queue still full after flush: {}", metric.signature());
+            }
         }
         if (queue.size() >= flushThreshold && flushing.compareAndSet(false, true)) {
             try {

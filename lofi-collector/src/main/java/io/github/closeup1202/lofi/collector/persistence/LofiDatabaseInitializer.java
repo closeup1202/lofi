@@ -9,9 +9,11 @@ import java.nio.file.Path;
 public class LofiDatabaseInitializer implements InitializingBean {
 
     private final JdbcTemplate jdbcTemplate;
+    private final int retentionCommits;
 
-    public LofiDatabaseInitializer(JdbcTemplate jdbcTemplate) {
+    public LofiDatabaseInitializer(JdbcTemplate jdbcTemplate, int retentionCommits) {
         this.jdbcTemplate = jdbcTemplate;
+        this.retentionCommits = retentionCommits;
     }
 
     @Override
@@ -19,6 +21,7 @@ public class LofiDatabaseInitializer implements InitializingBean {
         createLofiDirectory();
         createTable();
         createIndex();
+        purgeOldCommits();
     }
 
     private void createLofiDirectory() {
@@ -32,21 +35,34 @@ public class LofiDatabaseInitializer implements InitializingBean {
 
     private void createTable() {
         jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS method_metric (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                commit_hash TEXT    NOT NULL,
-                class_name  TEXT    NOT NULL,
-                method_name TEXT    NOT NULL,
-                elapsed_ms  INTEGER NOT NULL,
-                recorded_at TEXT    NOT NULL
-            )
-            """);
+                CREATE TABLE IF NOT EXISTS method_metric (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    commit_hash TEXT    NOT NULL,
+                    class_name  TEXT    NOT NULL,
+                    method_name TEXT    NOT NULL,
+                    elapsed_ms  INTEGER NOT NULL,
+                    recorded_at TEXT    NOT NULL
+                )
+                """);
     }
 
     private void createIndex() {
         jdbcTemplate.execute("""
-            CREATE INDEX IF NOT EXISTS idx_commit_hash
-            ON method_metric(commit_hash)
-            """);
+                CREATE INDEX IF NOT EXISTS idx_commit_hash
+                ON method_metric(commit_hash)
+                """);
+    }
+
+    private void purgeOldCommits() {
+        jdbcTemplate.update("""
+                DELETE FROM method_metric
+                WHERE commit_hash NOT IN (
+                    SELECT commit_hash
+                    FROM method_metric
+                    GROUP BY commit_hash
+                    ORDER BY MIN(recorded_at) DESC
+                    LIMIT ?
+                )
+                """, retentionCommits);
     }
 }
