@@ -34,3 +34,7 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### jar extraction artifacts ###
+META-INF/
+org/

@@ -1,0 +1,2 @@
+// lofi-core: pure domain module — no external dependencies
+// All shared config (java-library, BOM, test) is applied from the root subprojects block.

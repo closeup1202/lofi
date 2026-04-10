@@ -107,7 +107,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: lofi, lofi-diff
+        include: lofi, lofiDiff
 ```
 
 ### 4. lofi-cli 설치
@@ -160,10 +160,20 @@ lofi는 Spring AOP를 통해 `@Service`, `@Component`, `@Repository` 빈의 메�
 ```yaml
 lofi:
   commit-hash: ${GIT_COMMIT_HASH:unknown}
+  store-type: sqlite              # sqlite(기본값) 또는 in-memory
+  regression-threshold: 0.2       # 성능 저하 판단 임계값 (기본값: 0.2 = 20%)
   buffer:
-    flush-threshold: 100   # 메트릭을 모아서 저장할 개수 (기본값: 100)
-    flush-delay-ms: 5000   # 주기적으로 저장할 간격 ms (기본값: 5000)
+    flush-threshold: 100          # 메트릭을 모아서 저장할 개수 (기본값: 100)
+    flush-delay-ms: 5000          # 주기적으로 저장할 간격 ms (기본값: 5000)
+    queue-capacity: 1000          # 버퍼 큐 최대 용량 (기본값: 1000)
 ```
+
+### 저장소 타입
+
+| store-type | 설명 |
+|------------|------|
+| `sqlite` | `~/.lofi/metrics.db`에 영구 저장 (기본값) |
+| `in-memory` | 메모리에만 저장, 재시작 시 데이터 유실. 테스트/개발 환경 권장 |
 
 ---
 
