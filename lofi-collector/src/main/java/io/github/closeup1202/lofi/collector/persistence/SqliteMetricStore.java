@@ -63,7 +63,7 @@ public class SqliteMetricStore implements MetricStore {
         Instant deployedAt = metrics.stream()
                 .map(MethodMetric::recordedAt)
                 .min(Instant::compareTo)
-                .orElse(Instant.now());
+                .orElse(Instant.EPOCH);
 
         return new DeploySnapshot(commitHash, deployedAt, metrics);
     }

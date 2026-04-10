@@ -5,6 +5,8 @@ import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 
@@ -15,6 +17,8 @@ import java.time.Instant;
  */
 @Aspect
 public class LofiInterceptor {
+
+    private static final Logger log = LoggerFactory.getLogger(LofiInterceptor.class);
 
     private final MetricBuffer metricBuffer;
 
@@ -34,7 +38,11 @@ public class LofiInterceptor {
         long elapsed = System.currentTimeMillis() - start;
         String className = pjp.getTarget().getClass().getName();
         String methodName = pjp.getSignature().getName();
-        metricBuffer.add(new MethodMetric(className, methodName, elapsed, Instant.now()));
+        try {
+            metricBuffer.add(new MethodMetric(className, methodName, elapsed, Instant.now()));
+        } catch (Exception e) {
+            log.warn("[lofi] Failed to record metric for {}.{}(): {}", className, methodName, e.getMessage());
+        }
         return result;
     }
 }

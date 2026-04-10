@@ -9,29 +9,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.0.1] - 2026-04-10
+## [0.1.0] - 2026-04-10
 
 ### Added
 
 #### Core Features
-- d
+- Multi-module Spring Boot performance monitoring library (`lofi-core`, `lofi-collector`, `lofi-actuator`, `lofi-spring-boot-starter`)
+- AOP-based automatic method instrumentation for `@Service`, `@Component`, `@Repository`, `@Controller`, `@RestController` beans
+- SQLite-backed persistent metric storage (`~/.lofi/metrics.db`) with per-commit indexing
+- In-memory metric store for test and development environments
+- Async metric buffering (`MetricBuffer`) with configurable flush threshold and periodic flush interval
+- Deploy diff via `/actuator/lofiDiff?base=<commit>&head=<commit>` — regression detection with configurable threshold (default 20%)
+- Snapshot query via `/actuator/lofi/{commitHash}` — returns all recorded metrics for a deployment
+- `lofi-spring-boot-starter` auto-configuration with zero-code integration
+- TypeScript CLI (`lofi diff`, `lofi snapshot`) for terminal-based diff visualization
+- DB retention policy — keeps only the last N commits (default 50) on startup
 
+#### Configuration
+- `lofi.commit-hash` — current deployment identifier (supports `${GIT_COMMIT_HASH}`)
+- `lofi.store-type` — `sqlite` (default) or `in-memory`
+- `lofi.regression-threshold` — regression detection ratio (default `0.2`, range `0.0`–`1.0`)
+- `lofi.retention-commits` — number of commits to retain (default `50`, min `1`)
+- `lofi.buffer.flush-threshold` — metric count before forced flush (default `100`, min `1`)
+- `lofi.buffer.flush-delay-ms` — periodic flush interval in ms (default `5000`, min `1`)
+- `lofi.buffer.queue-capacity` — max queue size before drop (default `1000`, min `1`)
+
+#### Regression Detection Logic
+- Methods only in head (new): `regressed = false`
+- Methods with `baseMs = 0` and `headMs > 0`: `regressed = true`
+- Methods removed from head: included with `headMs = 0`, `regressed = false`
+- Normal case: `regressed = (deltaMs / baseMs) > regressionThreshold`
+
+### Fixed
+- Use FQCN (`getName()`) instead of simple class name to prevent signature collisions
+- Exception-throwing methods excluded from metrics to prevent latency pollution
+- Metric drop warning log added to `MetricBuffer` when queue is full after flush
+- `deployedAt` returns `Instant.EPOCH` instead of `Instant.now()` for empty snapshots
+- `InMemoryMetricStore` retention applied via insertion-ordered eviction
+- Redundant `DISTINCT` removed from retention SQL in `LofiDatabaseInitializer`
+
+### Tests
+- Unit tests: `DeployContextTest`, `LofiInterceptorTest`, `MetricBufferTest`, `DiffServiceImplTest`, `LofiPropertiesTest`
+- Integration test: full deploy diff scenario with real SQLite DB (`LofiDeployDiffIntegrationTest`)
+
+---
+
+## [0.0.1] - 2026-03-01
+
+### Added
+- Initial project skeleton with `lofi-core` domain model
+- Basic `MetricStore` and `DiffService` port interfaces
+- Proof-of-concept AOP interceptor and SQLite store
 
 ---
 
 ## Version History
 
-| Version | Date       | Description |
-|---------|------------|-------------|
-| 0.0.1   | 2026-04-10 | Initial release |
+| Version | Date       | Description            |
+|---------|------------|------------------------|
+| 0.1.0   | 2026-04-10 | First functional release |
+| 0.0.1   | 2026-03-01 | Initial skeleton        |
 
 ---
 
 ## Upgrade Guide
 
-### From 0.0.x to 0.1.x (Future)
+### From 0.0.x to 0.1.x
 
-_No breaking changes documented yet._
+- Replace any direct `MetricStore` usage with the auto-configured bean
+- Set `lofi.commit-hash` via environment variable `GIT_COMMIT_HASH` in your deployment pipeline
+- Expose actuator endpoints: `management.endpoints.web.exposure.include=lofi,lofiDiff`
 
 ---
 
@@ -51,5 +98,6 @@ When contributing, please update this changelog:
 
 ---
 
-[Unreleased]: https://github.com/closeup1202/curve/compare/v0.2.0...HEAD
-[0.0.1]: https://github.com/closeup1202/curve/releases/tag/v0.0.1
+[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/closeup1202/lofi/compare/v0.0.1...v0.1.0
+[0.0.1]: https://github.com/closeup1202/lofi/releases/tag/v0.0.1

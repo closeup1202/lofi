@@ -6,6 +6,8 @@ import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import io.github.closeup1202.lofi.core.port.MetricStore;
 
 import java.time.Instant;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -18,17 +20,37 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class InMemoryMetricStore implements MetricStore {
 
     private final ConcurrentHashMap<String, CopyOnWriteArrayList<MethodMetric>> metricsByCommit = new ConcurrentHashMap<>();
+    private final Deque<String> commitOrder = new ArrayDeque<>();
     private final DeployContext deployContext;
+    private final int retentionCommits;
 
-    public InMemoryMetricStore(DeployContext deployContext) {
+    public InMemoryMetricStore(DeployContext deployContext, int retentionCommits) {
         this.deployContext = deployContext;
+        this.retentionCommits = retentionCommits;
     }
 
     @Override
     public void save(MethodMetric metric) {
-        metricsByCommit
-                .computeIfAbsent(deployContext.commitHash(), k -> new CopyOnWriteArrayList<>())
-                .add(metric);
+        String commitHash = deployContext.commitHash();
+        CopyOnWriteArrayList<MethodMetric> list = registerCommitIfAbsent(commitHash);
+        list.add(metric);
+    }
+
+    /**
+     * 새 커밋을 등록하고 retentionCommits 초과 시 가장 오래된 커밋을 제거한다.
+     * commitOrder와 metricsByCommit의 정합성을 보장하기 위해 synchronized 처리.
+     */
+    private synchronized CopyOnWriteArrayList<MethodMetric> registerCommitIfAbsent(String commitHash) {
+        if (!metricsByCommit.containsKey(commitHash)) {
+            CopyOnWriteArrayList<MethodMetric> list = new CopyOnWriteArrayList<>();
+            metricsByCommit.put(commitHash, list);
+            commitOrder.addLast(commitHash);
+            while (commitOrder.size() > retentionCommits) {
+                String oldest = commitOrder.pollFirst();
+                metricsByCommit.remove(oldest);
+            }
+        }
+        return metricsByCommit.get(commitHash);
     }
 
     @Override
@@ -39,7 +61,7 @@ public class InMemoryMetricStore implements MetricStore {
         Instant deployedAt = metrics.stream()
                 .map(MethodMetric::recordedAt)
                 .min(Instant::compareTo)
-                .orElse(Instant.now());
+                .orElse(Instant.EPOCH);
         return new DeploySnapshot(commitHash, deployedAt, metrics);
     }
 }

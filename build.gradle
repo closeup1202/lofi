@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.3.0' apply false
     id 'io.spring.dependency-management' version '1.1.4' apply false
+    id 'io.github.gradle-nexus.publish-plugin' version '2.0.0'
 }
 
 allprojects {
@@ -33,5 +34,70 @@ subprojects {
 
     tasks.withType(JavaCompile) {
         options.compilerArgs << '-parameters'
+    }
+}
+
+// Maven Central 배포 대상 모듈
+def publishableProjects = [
+        project(':lofi-core'),
+        project(':lofi-collector'),
+        project(':lofi-actuator'),
+        project(':lofi-spring-boot-starter')
+]
+
+configure(publishableProjects) {
+    apply plugin: 'maven-publish'
+    apply plugin: 'signing'
+
+    java {
+        withSourcesJar()
+        withJavadocJar()
+    }
+
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                from components.java
+                pom {
+                    name = project.name
+                    description = 'Lofi — Lightweight method-level performance monitoring for Spring Boot'
+                    url = 'https://github.com/closeup1202/lofi'
+                    licenses {
+                        license {
+                            name = 'MIT License'
+                            url = 'https://opensource.org/licenses/MIT'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = 'closeup1202'
+                            name = 'closeup1202'
+                            url = 'https://github.com/closeup1202'
+                        }
+                    }
+                    scm {
+                        connection = 'scm:git:git://github.com/closeup1202/lofi.git'
+                        developerConnection = 'scm:git:ssh://github.com/closeup1202/lofi.git'
+                        url = 'https://github.com/closeup1202/lofi'
+                    }
+                }
+            }
+        }
+    }
+
+    signing {
+        useGpgCmd()
+        sign publishing.publications.mavenJava
+    }
+}
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            nexusUrl = uri('https://s01.oss.sonatype.org/service/local/')
+            snapshotRepositoryUrl = uri('https://s01.oss.sonatype.org/content/repositories/snapshots/')
+            username = findProperty('OSSRH_USERNAME') ?: System.getenv('OSSRH_USERNAME')
+            password = findProperty('OSSRH_PASSWORD') ?: System.getenv('OSSRH_PASSWORD')
+        }
     }
 }

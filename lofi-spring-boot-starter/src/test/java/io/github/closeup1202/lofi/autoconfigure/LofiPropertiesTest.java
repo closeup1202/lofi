@@ -74,4 +74,28 @@ class LofiPropertiesTest {
                 new LofiProperties("commit", "sqlite", 1.0, 50, defaultBuffer())
         );
     }
+
+    @Test
+    void shouldRejectZeroFlushThreshold() {
+        assertThatThrownBy(() ->
+                new LofiProperties.Buffer(0, 5000L, 1000)
+        ).isInstanceOf(IllegalArgumentException.class)
+         .hasMessageContaining("flush-threshold");
+    }
+
+    @Test
+    void shouldRejectZeroFlushDelayMs() {
+        assertThatThrownBy(() ->
+                new LofiProperties.Buffer(100, 0L, 1000)
+        ).isInstanceOf(IllegalArgumentException.class)
+         .hasMessageContaining("flush-delay-ms");
+    }
+
+    @Test
+    void shouldRejectZeroQueueCapacity() {
+        assertThatThrownBy(() ->
+                new LofiProperties.Buffer(100, 5000L, 0)
+        ).isInstanceOf(IllegalArgumentException.class)
+         .hasMessageContaining("queue-capacity");
+    }
 }

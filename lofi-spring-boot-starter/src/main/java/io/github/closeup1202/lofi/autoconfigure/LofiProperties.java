@@ -36,5 +36,22 @@ public record LofiProperties(
             @DefaultValue("5000") long flushDelayMs,
             @DefaultValue("1000") int queueCapacity
     ) {
+        public Buffer {
+            if (flushThreshold < 1) {
+                throw new IllegalArgumentException(
+                        "lofi.buffer.flush-threshold must be at least 1, got: " + flushThreshold
+                );
+            }
+            if (flushDelayMs < 1) {
+                throw new IllegalArgumentException(
+                        "lofi.buffer.flush-delay-ms must be at least 1, got: " + flushDelayMs
+                );
+            }
+            if (queueCapacity < 1) {
+                throw new IllegalArgumentException(
+                        "lofi.buffer.queue-capacity must be at least 1, got: " + queueCapacity
+                );
+            }
+        }
     }
 }

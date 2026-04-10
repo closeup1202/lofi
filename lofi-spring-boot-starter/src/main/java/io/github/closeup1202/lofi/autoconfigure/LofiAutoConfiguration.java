@@ -73,8 +73,8 @@ public class LofiAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(name = "lofi.store-type", havingValue = "in-memory")
-    public MetricStore inMemoryMetricStore(DeployContext deployContext) {
-        return new InMemoryMetricStore(deployContext);
+    public MetricStore inMemoryMetricStore(DeployContext deployContext, LofiProperties properties) {
+        return new InMemoryMetricStore(deployContext, properties.retentionCommits());
     }
 
     @Bean
