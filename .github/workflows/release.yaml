@@ -62,7 +62,12 @@ jobs:
 
       - name: Publish to Maven Central
         run: |
-          ./gradlew publishAllPublicationsToMavenCentral --no-daemon \
+          ./gradlew \
+            :lofi-core:publishAllPublicationsToMavenCentral \
+            :lofi-collector:publishAllPublicationsToMavenCentral \
+            :lofi-actuator:publishAllPublicationsToMavenCentral \
+            :lofi-spring-boot-starter:publishAllPublicationsToMavenCentral \
+            --no-daemon \
             -Psigning.gnupg.keyName=${{ secrets.GPG_KEY_ID }} \
             -Psigning.gnupg.passphrase=${{ secrets.GPG_PASSPHRASE }}
         env:
