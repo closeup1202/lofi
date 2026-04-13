@@ -26,14 +26,14 @@ lofi links deploy events to code and shows you the diff directly.
 $ lofi diff a3f9c1..d82e04
 
 Deploy Diff  main@a3f9c1 → main@d82e04
-────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────
   Method                               Before    After    Delta
-────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────
   OrderService.createOrder()           14ms  →  91ms   +77ms  ▲
   PaymentClient.validate()             22ms  →  58ms   +36ms  ▲
   UserService.findById()                3ms  →   3ms      —
   ProductService.getStock()             8ms  →   9ms      —
-────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────
   2 regressions detected
 ```
 
