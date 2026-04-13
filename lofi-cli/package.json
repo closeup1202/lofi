@@ -1,6 +1,6 @@
 {
   "name": "@closeup1202/lofi-cli",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "CLI for lofi — method-level deploy diff for Spring Boot teams",
   "bin": {
     "lofi": "./dist/index.js"
@@ -32,6 +32,7 @@
     "commander": "^14.0.3"
   },
   "devDependencies": {
+    "@types/node": "^25.6.0",
     "tsup": "^8.5.1",
     "typescript": "^6.0.2"
   }

@@ -92,19 +92,26 @@ var LofiClient = class {
 
 // src/render.ts
 var import_chalk = __toESM(require("chalk"));
-var LINE = "\u2500".repeat(60);
+var DIFF_LINE = "\u2500".repeat(78);
+var SNAPSHOT_LINE = "\u2500".repeat(60);
+function shortSignature(signature) {
+  const parts = signature.split(".");
+  const methodPart = parts[parts.length - 1];
+  const className = parts[parts.length - 2];
+  return `${className}.${methodPart}`;
+}
 function renderDiff(result) {
   console.log();
   console.log(
-    import_chalk.default.bold("Deploy Diff") + "  " + import_chalk.default.gray(result.baseCommit.slice(0, 7)) + " \u2192 " + import_chalk.default.white(result.headCommit.slice(0, 7))
+    import_chalk.default.bold("Deploy Diff") + "  " + import_chalk.default.gray(result.baseCommit) + " \u2192 " + import_chalk.default.white(result.headCommit)
   );
-  console.log(import_chalk.default.gray(LINE));
+  console.log(import_chalk.default.gray(DIFF_LINE));
   console.log(
-    import_chalk.default.gray("  Method".padEnd(45)) + import_chalk.default.gray("Before".padStart(8)) + import_chalk.default.gray("After".padStart(8)) + import_chalk.default.gray("Delta".padStart(10))
+    import_chalk.default.gray("  Method".padEnd(47)) + import_chalk.default.gray("Before".padStart(7)) + import_chalk.default.gray("     ") + import_chalk.default.gray("After".padStart(7)) + import_chalk.default.gray("  ") + import_chalk.default.gray("Delta".padStart(10))
   );
-  console.log(import_chalk.default.gray(LINE));
+  console.log(import_chalk.default.gray(DIFF_LINE));
   for (const d of result.diffs) {
-    const signature = d.signature.padEnd(44);
+    const signature = shortSignature(d.signature).padEnd(44);
     const base = `${d.baseMs.toFixed(0)}ms`.padStart(7);
     const head = `${d.headMs.toFixed(0)}ms`.padStart(7);
     const delta = `${d.deltaMs > 0 ? "+" : ""}${d.deltaMs.toFixed(0)}ms`.padStart(8);
@@ -115,7 +122,7 @@ function renderDiff(result) {
       console.log(import_chalk.default.gray(`  ${signature} ${base}  \u2192  ${head}  ${delta}${arrow}`));
     }
   }
-  console.log(import_chalk.default.gray(LINE));
+  console.log(import_chalk.default.gray(DIFF_LINE));
   const regressions = result.diffs.filter((d) => d.regressed);
   if (regressions.length > 0) {
     console.log(import_chalk.default.red.bold(`  ${regressions.length} regression(s) detected`));
@@ -126,8 +133,8 @@ function renderDiff(result) {
 }
 function renderSnapshot(snapshot) {
   console.log();
-  console.log(import_chalk.default.bold("Snapshot") + "  " + import_chalk.default.gray(snapshot.commitHash.slice(0, 7)));
-  console.log(import_chalk.default.gray(LINE));
+  console.log(import_chalk.default.bold("Snapshot") + "  " + import_chalk.default.gray(snapshot.commitHash));
+  console.log(import_chalk.default.gray(SNAPSHOT_LINE));
   console.log(import_chalk.default.gray(`  Deployed at: ${snapshot.deployedAt}`));
   console.log(import_chalk.default.gray(`  Metrics collected: ${snapshot.metrics.length}`));
   if (snapshot.metrics.length > 0) {
@@ -140,13 +147,13 @@ function renderSnapshot(snapshot) {
     const sorted = [...avgByMethod.entries()].sort((a, b) => b[1].total / b[1].count - a[1].total / a[1].count);
     console.log();
     console.log(
-      import_chalk.default.gray("  Method".padEnd(45)) + import_chalk.default.gray("Avg".padStart(8)) + import_chalk.default.gray("Calls".padStart(6))
+      import_chalk.default.gray("  Method".padEnd(45)) + import_chalk.default.gray("Avg".padStart(8)) + import_chalk.default.gray("Calls".padStart(7))
     );
-    console.log(import_chalk.default.gray(LINE));
+    console.log(import_chalk.default.gray(SNAPSHOT_LINE));
     for (const [sig, { total, count }] of sorted) {
       const avg = total / count;
       console.log(import_chalk.default.gray(
-        `  ${sig.padEnd(44)} ${(avg.toFixed(0) + "ms").padStart(7)} ${String(count).padStart(5)}`
+        `  ${shortSignature(sig).padEnd(44)} ${(avg.toFixed(0) + "ms").padStart(7)} ${String(count).padStart(5)}`
       ));
     }
   }
