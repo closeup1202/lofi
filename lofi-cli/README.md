@@ -105,7 +105,7 @@ Both commands require the target app to be running and reachable at the specifie
 **1. Add the library to your Spring Boot app**
 
 ```groovy
-implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.1.3'
+implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.1.5'
 ```
 
 **2. Expose actuator endpoints**
