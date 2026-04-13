@@ -20,7 +20,6 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
-import javax.sql.DataSource;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicReference;
@@ -45,11 +44,11 @@ class LofiDeployDiffIntegrationTest {
     static class TestConfig {
 
         @Bean
-        public DataSource lofiDataSource() {
+        public JdbcTemplate lofiJdbcTemplate() {
             DriverManagerDataSource dataSource = new DriverManagerDataSource();
             dataSource.setDriverClassName("org.sqlite.JDBC");
             dataSource.setUrl("jdbc:sqlite:" + DB_PATH);
-            return dataSource;
+            return new JdbcTemplate(dataSource);
         }
 
         @Bean

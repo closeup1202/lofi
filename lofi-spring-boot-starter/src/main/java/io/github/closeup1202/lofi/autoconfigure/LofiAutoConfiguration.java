@@ -25,7 +25,6 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 // Adding the lofi starter enables scheduling in the application context.
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-import javax.sql.DataSource;
 import java.nio.file.Path;
 
 @AutoConfiguration(after = DataSourceAutoConfiguration.class)
@@ -33,22 +32,21 @@ import java.nio.file.Path;
 @EnableConfigurationProperties(LofiProperties.class)
 public class LofiAutoConfiguration {
 
+    /**
+     * Creates a dedicated JdbcTemplate backed by lofi's own SQLite datasource.
+     * The SQLite DataSource is intentionally created inline and never registered as a
+     * separate DataSource bean, so it does not interfere with the application's primary
+     * DataSource or Spring Boot's JPA auto-configuration.
+     */
     @Bean
-    @ConditionalOnMissingBean(name = "lofiDataSource")
+    @ConditionalOnMissingBean(name = "lofiJdbcTemplate")
     @ConditionalOnProperty(name = "lofi.store-type", havingValue = "sqlite", matchIfMissing = true)
-    public DataSource lofiDataSource() {
+    public JdbcTemplate lofiJdbcTemplate() {
         Path dbPath = Path.of(System.getProperty("user.home"), ".lofi", "metrics.db");
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
         dataSource.setDriverClassName("org.sqlite.JDBC");
         dataSource.setUrl("jdbc:sqlite:" + dbPath.toAbsolutePath());
-        return dataSource;
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(name = "lofiJdbcTemplate")
-    @ConditionalOnProperty(name = "lofi.store-type", havingValue = "sqlite", matchIfMissing = true)
-    public JdbcTemplate lofiJdbcTemplate(DataSource lofiDataSource) {
-        return new JdbcTemplate(lofiDataSource);
+        return new JdbcTemplate(dataSource);
     }
 
     @Bean
