@@ -29,7 +29,7 @@ public class LofiDatabaseInitializer implements InitializingBean {
             Path lofiDir = Path.of(System.getProperty("user.home"), ".lofi");
             Files.createDirectories(lofiDir);
         } catch (Exception e) {
-            throw new IllegalStateException("~/.lofi 디렉토리 생성 실패", e);
+            throw new IllegalStateException("Failed to create ~/.lofi directory", e);
         }
     }
 

@@ -54,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.0.1] - 2026-03-01
+## [0.0.1] - 2026-04-08
 
 ### Added
 - Initial project skeleton with `lofi-core` domain model
@@ -68,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | Version | Date       | Description            |
 |---------|------------|------------------------|
 | 0.1.0   | 2026-04-10 | First functional release |
-| 0.0.1   | 2026-03-01 | Initial skeleton        |
+| 0.0.1   | 2026-04-08 | Initial skeleton        |
 
 ---
 

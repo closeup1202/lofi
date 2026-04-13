@@ -1,7 +1,7 @@
-## 빌드
+## Build
 npm run build
 
-## 전역 설치
+## Global install
 npm install -g .
 
 ## diff

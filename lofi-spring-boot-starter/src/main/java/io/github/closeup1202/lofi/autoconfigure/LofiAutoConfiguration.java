@@ -20,8 +20,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
-// @EnableScheduling은 MetricBuffer(SchedulingConfigurer)의 주기적 flush에 필수입니다.
-// lofi starter를 추가하면 애플리케이션 컨텍스트에 스케줄링이 활성화됩니다.
+// @EnableScheduling is required for MetricBuffer (SchedulingConfigurer) to perform periodic flushes.
+// Adding the lofi starter enables scheduling in the application context.
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import javax.sql.DataSource;

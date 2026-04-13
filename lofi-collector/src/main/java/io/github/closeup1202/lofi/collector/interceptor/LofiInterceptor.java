@@ -11,9 +11,9 @@ import org.slf4j.LoggerFactory;
 import java.time.Instant;
 
 /**
- * @Service @Component @Repository @Controller @RestController 붙은 빈 전체를 자동으로 계측하여
- * MethodMetric을 만들어서 MetricStore로 저장.
- * 예외가 발생한 호출은 레이턴시 오염을 막기 위해 기록하지 않음.
+ * Automatically instruments all beans annotated with @Service, @Component, @Repository,
+ * @Controller, or @RestController, creating a MethodMetric and storing it via MetricStore.
+ * Calls that throw exceptions are not recorded to prevent latency pollution.
  */
 @Aspect
 public class LofiInterceptor {

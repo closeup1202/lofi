@@ -10,6 +10,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Default implementation of {@link DiffService}.
+ *
+ * <p>Computes per-method latency diffs by comparing the average elapsed time in
+ * the base and head deploy snapshots. A method is flagged as regressed when
+ * {@code (headMs - baseMs) / baseMs > regressionThreshold}.
+ *
+ * <p>Methods present only in the head deploy (new methods) are included but never
+ * flagged as regressions. Methods present only in the base deploy (removed methods)
+ * are included with a head latency of 0ms and {@code regressed = false}.
+ */
 public class DiffServiceImpl implements DiffService {
 
     private final MetricStore metricStore;

@@ -32,12 +32,14 @@ subprojects {
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
     }
 
-    tasks.withType(JavaCompile) {
-        options.compilerArgs << '-parameters'
+    tasks.withType(JavaCompile).tap {
+        configureEach {
+            options.compilerArgs << '-parameters'
+        }
     }
 }
 
-// Maven Central 배포 대상 모듈
+// Modules to publish to Maven Central
 def publishableProjects = [
         project(':lofi-core'),
         project(':lofi-collector'),

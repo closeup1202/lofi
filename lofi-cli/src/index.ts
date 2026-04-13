@@ -18,15 +18,15 @@ program
 
 function handleError(err: unknown): never {
     if (err instanceof LofiConnectionError) {
-        console.error(chalk.red(`\n연결 실패 — ${err.message}`))
-        console.error(chalk.gray('  --url 옵션으로 actuator 주소를 확인해주세요'))
+        console.error(chalk.red(`\nConnection failed — ${err.message}`))
+        console.error(chalk.gray('  Check the actuator URL with the --url option'))
     } else if (err instanceof LofiNotFoundError) {
-        console.error(chalk.red(`\n데이터 없음 — ${err.message}`))
-        console.error(chalk.gray('  커밋 해시가 올바른지, 해당 배포 데이터가 수집됐는지 확인해주세요'))
+        console.error(chalk.red(`\nNo data found — ${err.message}`))
+        console.error(chalk.gray('  Verify the commit hash is correct and that metrics were collected for that deploy'))
     } else if (err instanceof LofiUnexpectedError) {
-        console.error(chalk.red(`\n오류 — ${err.message}`))
+        console.error(chalk.red(`\nError — ${err.message}`))
     } else {
-        console.error(chalk.red('\n알 수 없는 오류가 발생했어요'))
+        console.error(chalk.red('\nAn unknown error occurred'))
         console.error(err)
     }
     process.exit(1)
@@ -39,8 +39,8 @@ program
     .action(async (range: string, options: { url: string }) => {
         const [base, head] = range.split('..')
         if (!base || !head) {
-            console.error(chalk.red('\n올바른 형식: lofi diff <base>..<head>'))
-            console.error(chalk.gray('  예시: lofi diff a3f9c1..d82e04'))
+            console.error(chalk.red('\nInvalid format: lofi diff <base>..<head>'))
+            console.error(chalk.gray('  Example: lofi diff a3f9c1..d82e04'))
             process.exit(1)
         }
         try {

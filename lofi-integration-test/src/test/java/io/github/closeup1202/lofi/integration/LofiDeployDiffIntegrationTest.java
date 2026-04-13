@@ -38,7 +38,7 @@ class LofiDeployDiffIntegrationTest {
     static final String BASE_COMMIT = "base-commit-001";
     static final String HEAD_COMMIT = "head-commit-002";
 
-    // 현재 활성 커밋 해시를 테스트 간에 공유
+    // shared active commit hash across test methods
     static final AtomicReference<String> activeCommit = new AtomicReference<>(BASE_COMMIT);
 
     @TestConfiguration
@@ -87,7 +87,7 @@ class LofiDeployDiffIntegrationTest {
 
     @Test
     @Order(1)
-    void 배포_A_메트릭_수집() throws Exception {
+    void collectMetricsForDeployA() throws Exception {
         activeCommit.set(BASE_COMMIT);
         TestService.slowDelayMs = 10;
 
@@ -105,7 +105,7 @@ class LofiDeployDiffIntegrationTest {
 
     @Test
     @Order(2)
-    void 배포_B_메트릭_수집() throws Exception {
+    void collectMetricsForDeployB() throws Exception {
         activeCommit.set(HEAD_COMMIT);
         TestService.slowDelayMs = 100;
 
@@ -123,7 +123,7 @@ class LofiDeployDiffIntegrationTest {
 
     @Test
     @Order(3)
-    void 배포_A_B_diff_regression_감지() throws Exception {
+    void detectRegressionInDiffBetweenDeployAAndB() throws Exception {
         mockMvc.perform(get("/actuator/lofiDiff")
                         .param("base", BASE_COMMIT)
                         .param("head", HEAD_COMMIT))

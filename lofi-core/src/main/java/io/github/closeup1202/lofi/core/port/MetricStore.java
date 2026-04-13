@@ -6,14 +6,37 @@ import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import java.util.List;
 
 /**
- * TODO: multi-pod support
- * 멀티 Pod 환경에서는 중앙 스토리지(외부 DB 또는 대시보드)로 교체 필요
- * MetricStore 인터페이스만 갈아끼우면 됨
+ * Port for persisting and retrieving method metrics.
+ *
+ * <p>The default implementations are {@code SqliteMetricStore} (persistent, file-based)
+ * and {@code InMemoryMetricStore} (ephemeral, for test/dev use).
+ *
+ * <p>TODO: multi-pod support — in a multi-pod environment, replace with a centralized
+ * storage (external DB or dashboard) by providing an alternative implementation of this interface.
  */
 public interface MetricStore {
+
+    /**
+     * Persists a single method metric for the current deploy.
+     *
+     * @param metric the metric to save
+     */
     void save(MethodMetric metric);
+
+    /**
+     * Retrieves all metrics recorded for the given commit hash as a snapshot.
+     *
+     * @param commitHash the commit hash identifying the deploy
+     * @return a snapshot containing all metrics and the inferred deploy time
+     */
     DeploySnapshot snapshot(String commitHash);
 
+    /**
+     * Persists a batch of metrics. Defaults to calling {@link #save} for each element;
+     * implementations may override this for more efficient batch writes.
+     *
+     * @param metrics the list of metrics to save
+     */
     default void saveAll(List<MethodMetric> metrics) {
         metrics.forEach(this::save);
     }

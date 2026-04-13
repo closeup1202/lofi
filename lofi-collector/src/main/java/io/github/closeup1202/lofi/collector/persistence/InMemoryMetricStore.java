@@ -4,6 +4,7 @@ import io.github.closeup1202.lofi.collector.context.DeployContext;
 import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import io.github.closeup1202.lofi.core.port.MetricStore;
+import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.ArrayDeque;
@@ -13,9 +14,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * lofi.store-type=in-memory 설정 시 활성화됨
- * 단일 프로세스 내 테스트/개발 환경에서 SQLite 없이 동작 가능
- * 재시작 시 데이터 유실됨
+ * Activated when lofi.store-type=in-memory is set.
+ * Operates without SQLite for test/development environments within a single process.
+ * Data is lost on restart.
  */
 public class InMemoryMetricStore implements MetricStore {
 
@@ -37,8 +38,8 @@ public class InMemoryMetricStore implements MetricStore {
     }
 
     /**
-     * 새 커밋을 등록하고 retentionCommits 초과 시 가장 오래된 커밋을 제거한다.
-     * commitOrder와 metricsByCommit의 정합성을 보장하기 위해 synchronized 처리.
+     * Registers a new commit and evicts the oldest commit when retentionCommits is exceeded.
+     * Synchronized to ensure consistency between commitOrder and metricsByCommit.
      */
     private synchronized CopyOnWriteArrayList<MethodMetric> registerCommitIfAbsent(String commitHash) {
         if (!metricsByCommit.containsKey(commitHash)) {
@@ -47,7 +48,9 @@ public class InMemoryMetricStore implements MetricStore {
             commitOrder.addLast(commitHash);
             while (commitOrder.size() > retentionCommits) {
                 String oldest = commitOrder.pollFirst();
-                metricsByCommit.remove(oldest);
+                if (StringUtils.hasLength(oldest)) {
+                    metricsByCommit.remove(oldest);
+                }
             }
         }
         return metricsByCommit.get(commitHash);

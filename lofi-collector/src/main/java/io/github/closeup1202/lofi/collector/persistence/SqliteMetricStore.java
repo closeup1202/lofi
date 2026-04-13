@@ -9,6 +9,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import java.time.Instant;
 import java.util.List;
 
+/**
+ * SQLite-backed implementation of {@link MetricStore}.
+ * Metrics are persisted to {@code ~/.lofi/metrics.db} and survive application restarts.
+ * Uses a dedicated {@link JdbcTemplate} bean ({@code lofiJdbcTemplate}) to avoid
+ * interfering with the application's own datasource.
+ */
 public class SqliteMetricStore implements MetricStore {
 
     private final JdbcTemplate jdbcTemplate;

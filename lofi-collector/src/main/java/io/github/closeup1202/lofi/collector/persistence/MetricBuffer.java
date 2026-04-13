@@ -14,6 +14,19 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * An in-process buffer that accumulates {@link MethodMetric} instances and flushes them
+ * to {@link MetricStore} in batches, reducing write pressure on the underlying storage.
+ *
+ * <p>Flushing is triggered in two ways:
+ * <ul>
+ *   <li><b>Threshold-based:</b> when the queue reaches {@code flushThreshold} items.</li>
+ *   <li><b>Time-based:</b> on a fixed-delay schedule every {@code flushDelayMs} milliseconds,
+ *       implemented via {@link SchedulingConfigurer}.</li>
+ * </ul>
+ *
+ * <p>If the queue is full, an overflow flush is attempted before dropping the metric.
+ */
 public class MetricBuffer implements SchedulingConfigurer {
 
     private static final Logger log = LoggerFactory.getLogger(MetricBuffer.class);
@@ -31,6 +44,12 @@ public class MetricBuffer implements SchedulingConfigurer {
         this.queue = new ArrayBlockingQueue<>(queueCapacity);
     }
 
+    /**
+     * Adds a metric to the buffer. Triggers a flush if the queue reaches the threshold.
+     * If the queue is full, flushes first and retries; logs a warning if it is still full.
+     *
+     * @param metric the metric to buffer
+     */
     public void add(MethodMetric metric) {
         boolean offered = queue.offer(metric);
         if (!offered) {
@@ -49,6 +68,10 @@ public class MetricBuffer implements SchedulingConfigurer {
         }
     }
 
+    /**
+     * Drains all buffered metrics and writes them to the store in a single batch.
+     * No-ops if the buffer is empty.
+     */
     public void flush() {
         List<MethodMetric> batch = new ArrayList<>();
         queue.drainTo(batch);

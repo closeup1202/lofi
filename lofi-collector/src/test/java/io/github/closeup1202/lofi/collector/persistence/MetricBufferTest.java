@@ -39,7 +39,7 @@ class MetricBufferTest {
 
         buffer.add(metric());
         buffer.add(metric());
-        buffer.add(metric()); // threshold 도달 → flush
+        buffer.add(metric()); // threshold reached → flush
 
         verify(metricStore, times(1)).saveAll(argThat(list -> list.size() == 3));
     }
@@ -57,11 +57,11 @@ class MetricBufferTest {
 
     @Test
     void shouldTriggerFlushWhenQueueIsFull() {
-        // capacity=1, threshold=100 → overflow 시 flush 발동
+        // capacity=1, threshold=100 → flush triggered on overflow
         MetricBuffer buffer = new MetricBuffer(metricStore, 100, 5000, 1);
 
-        buffer.add(metric()); // 큐 꽉 참
-        buffer.add(metric()); // overflow → flush 호출
+        buffer.add(metric()); // queue full
+        buffer.add(metric()); // overflow → flush invoked
 
         verify(metricStore, atLeastOnce()).saveAll(any());
     }
