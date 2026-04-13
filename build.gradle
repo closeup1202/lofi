@@ -50,6 +50,7 @@ def publishableProjects = [
 configure(publishableProjects) {
     apply plugin: 'maven-publish'
     apply plugin: 'signing'
+    apply plugin: 'com.gradleup.nmcp'
 
     java {
         withSourcesJar()
@@ -91,12 +92,12 @@ configure(publishableProjects) {
         useGpgCmd()
         sign publishing.publications.mavenJava
     }
-}
 
-nmcp {
-    publishAllPublications {
-        username = findProperty('OSSRH_USERNAME') ?: System.getenv('OSSRH_USERNAME')
-        password = findProperty('OSSRH_PASSWORD') ?: System.getenv('OSSRH_PASSWORD')
-        publicationType = "AUTOMATIC"
+    nmcp {
+        publishAllPublications {
+            username = findProperty('OSSRH_USERNAME') ?: System.getenv('OSSRH_USERNAME')
+            password = findProperty('OSSRH_PASSWORD') ?: System.getenv('OSSRH_PASSWORD')
+            publicationType = "AUTOMATIC"
+        }
     }
 }
