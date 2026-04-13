@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.4] - 2026-04-13
+## [0.1.5] - 2026-04-13
 
 ### Fixed
 - Excluded `jakarta.servlet.Filter` subclasses (e.g. `JwtAuthenticationFilter`) from AOP instrumentation to prevent conflicts with Spring Security filter chains
-- Added `jakarta.servlet:jakarta.servlet-api` as `compileOnly` dependency to support the Filter pointcut exclusion
+- Excluded `HandlerInterceptor` subclasses from AOP instrumentation
+- Excluded `@Aspect` annotated classes from AOP instrumentation to prevent proxy conflicts
+- Added `jakarta.servlet:jakarta.servlet-api` and `spring-webmvc` as `compileOnly` dependencies to support the pointcut exclusions
 
 ---
 
@@ -90,7 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date       | Description                                      |
 |---------|------------|--------------------------------------------------|
-| 0.1.4   | 2026-04-13 | Exclude Jakarta Servlet filters from AOP instrumentation |
+| 0.1.5   | 2026-04-13 | Exclude Servlet filters, HandlerInterceptors, Aspects from AOP |
 | 0.1.3   | 2026-04-13 | Exclude Spring internal classes from AOP instrumentation |
 | 0.1.2   | 2026-04-13 | Fix JPA conflict caused by lofi SQLite DataSource |
 | 0.1.1   | 2026-04-13 | Fix DataSource auto-configuration ordering       |
@@ -135,8 +137,8 @@ When contributing, please update this changelog:
 
 ---
 
-[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.1.4...HEAD
-[0.1.4]: https://github.com/closeup1202/lofi/compare/v0.1.3...v0.1.4
+[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/closeup1202/lofi/compare/v0.1.4...v0.1.5
 [0.1.3]: https://github.com/closeup1202/lofi/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/closeup1202/lofi/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/closeup1202/lofi/compare/v0.1.0...v0.1.1
