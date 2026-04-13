@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.1] - 2026-04-13
+## [0.1.2] - 2026-04-13
 
 ### Fixed
-- `LofiAutoConfiguration` now runs after `DataSourceAutoConfiguration` via `@AutoConfiguration(after = DataSourceAutoConfiguration.class)`, preventing the lofi SQLite `DataSource` bean from interfering with the application's primary datasource auto-configuration
+- Inlined lofi SQLite `DataSource` inside `lofiJdbcTemplate` bean to prevent it from being registered as a `DataSource` candidate, which was causing Spring Boot JPA auto-configuration (`@ConditionalOnSingleCandidate`) to fail when used alongside an application datasource (e.g. PostgreSQL)
+- `LofiAutoConfiguration` runs after `DataSourceAutoConfiguration` via `@AutoConfiguration(after = DataSourceAutoConfiguration.class)`
 
 ---
 
@@ -74,6 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date       | Description                                      |
 |---------|------------|--------------------------------------------------|
+| 0.1.2   | 2026-04-13 | Fix JPA conflict caused by lofi SQLite DataSource |
 | 0.1.1   | 2026-04-13 | Fix DataSource auto-configuration ordering       |
 | 0.1.0   | 2026-04-13 | First functional release                         |
 | 0.0.1   | 2026-04-10 | Initial skeleton                                 |
@@ -82,7 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Upgrade Guide
 
-### From 0.1.0 to 0.1.1
+### From 0.1.x to 0.1.2
 
 - No API changes. Update the version and re-deploy.
 - If you added a `@Primary` `DataSource` bean as a workaround for the datasource conflict, it can be safely removed.
