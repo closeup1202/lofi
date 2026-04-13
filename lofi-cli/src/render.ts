@@ -1,25 +1,35 @@
 import chalk from 'chalk'
 import { DiffResult, DeploySnapshot } from './client'
 
-const LINE = '─'.repeat(60)
+const DIFF_LINE = '─'.repeat(78)
+const SNAPSHOT_LINE = '─'.repeat(60)
+
+function shortSignature(signature: string): string {
+    const parts = signature.split('.')
+    const methodPart = parts[parts.length - 1]  // e.g. "create()"
+    const className = parts[parts.length - 2]   // e.g. "OrderController"
+    return `${className}.${methodPart}`
+}
 
 export function renderDiff(result: DiffResult): void {
     console.log()
     console.log(chalk.bold('Deploy Diff') + '  ' +
-        chalk.gray(result.baseCommit.slice(0, 7)) + ' → ' +
-        chalk.white(result.headCommit.slice(0, 7))
+        chalk.gray(result.baseCommit) + ' → ' +
+        chalk.white(result.headCommit)
     )
-    console.log(chalk.gray(LINE))
+    console.log(chalk.gray(DIFF_LINE))
     console.log(
-        chalk.gray('  Method'.padEnd(45)) +
-        chalk.gray('Before'.padStart(8)) +
-        chalk.gray('After'.padStart(8)) +
+        chalk.gray('  Method'.padEnd(47)) +
+        chalk.gray('Before'.padStart(7)) +
+        chalk.gray('     ') +
+        chalk.gray('After'.padStart(7)) +
+        chalk.gray('  ') +
         chalk.gray('Delta'.padStart(10))
     )
-    console.log(chalk.gray(LINE))
+    console.log(chalk.gray(DIFF_LINE))
 
     for (const d of result.diffs) {
-        const signature = d.signature.padEnd(44)
+        const signature = shortSignature(d.signature).padEnd(44)
         const base = `${d.baseMs.toFixed(0)}ms`.padStart(7)
         const head = `${d.headMs.toFixed(0)}ms`.padStart(7)
         const delta = `${d.deltaMs > 0 ? '+' : ''}${d.deltaMs.toFixed(0)}ms`.padStart(8)
@@ -32,7 +42,7 @@ export function renderDiff(result: DiffResult): void {
         }
     }
 
-    console.log(chalk.gray(LINE))
+    console.log(chalk.gray(DIFF_LINE))
 
     const regressions = result.diffs.filter(d => d.regressed)
     if (regressions.length > 0) {
@@ -45,8 +55,8 @@ export function renderDiff(result: DiffResult): void {
 
 export function renderSnapshot(snapshot: DeploySnapshot): void {
     console.log()
-    console.log(chalk.bold('Snapshot') + '  ' + chalk.gray(snapshot.commitHash.slice(0, 7)))
-    console.log(chalk.gray(LINE))
+    console.log(chalk.bold('Snapshot') + '  ' + chalk.gray(snapshot.commitHash))
+    console.log(chalk.gray(SNAPSHOT_LINE))
     console.log(chalk.gray(`  Deployed at: ${snapshot.deployedAt}`))
     console.log(chalk.gray(`  Metrics collected: ${snapshot.metrics.length}`))
 
@@ -65,14 +75,14 @@ export function renderSnapshot(snapshot: DeploySnapshot): void {
         console.log(
             chalk.gray('  Method'.padEnd(45)) +
             chalk.gray('Avg'.padStart(8)) +
-            chalk.gray('Calls'.padStart(6))
+            chalk.gray('Calls'.padStart(7))
         )
-        console.log(chalk.gray(LINE))
+        console.log(chalk.gray(SNAPSHOT_LINE))
 
         for (const [sig, { total, count }] of sorted) {
             const avg = total / count
             console.log(chalk.gray(
-                `  ${sig.padEnd(44)} ${(avg.toFixed(0) + 'ms').padStart(7)} ${String(count).padStart(5)}`
+                `  ${shortSignature(sig).padEnd(44)} ${(avg.toFixed(0) + 'ms').padStart(7)} ${String(count).padStart(5)}`
             ))
         }
     }

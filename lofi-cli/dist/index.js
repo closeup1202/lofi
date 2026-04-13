@@ -155,7 +155,7 @@ function renderSnapshot(snapshot) {
 
 // src/index.ts
 var program = new import_commander.Command();
-program.name("lofi").description("Method-level deploy diff for Spring Boot teams").version("0.1.2");
+program.name("lofi").description("Method-level deploy diff for Spring Boot teams").version("0.1.3");
 function handleError(err) {
   if (err instanceof LofiConnectionError) {
     console.error(import_chalk2.default.red(`
