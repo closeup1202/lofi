@@ -62,7 +62,7 @@ jobs:
 
       - name: Publish to Maven Central
         run: |
-          ./gradlew publishToSonatype closeAndReleaseSonatypeStagingRepository --no-daemon \
+          ./gradlew publishAllPublicationsToMavenCentral --no-daemon \
             -Psigning.gnupg.keyName=${{ secrets.GPG_KEY_ID }} \
             -Psigning.gnupg.passphrase=${{ secrets.GPG_PASSPHRASE }}
         env:
