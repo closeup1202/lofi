@@ -38,3 +38,6 @@ out/
 ### jar extraction artifacts ###
 META-INF/
 org/
+
+### claude ###
+.claude/
