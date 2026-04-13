@@ -11,8 +11,9 @@ import org.slf4j.LoggerFactory;
 import java.time.Instant;
 
 /**
- * Automatically instruments all beans annotated with @Service, @Component, @Repository,
- * @Controller, or @RestController, creating a MethodMetric and storing it via MetricStore.
+ * Automatically instruments all beans annotated with {@code @Service}, {@code @Component},
+ * {@code @Repository}, {@code @Controller}, or {@code @RestController}, creating a
+ * {@link MethodMetric} and storing it via {@link MetricBuffer}.
  * Calls that throw exceptions are not recorded to prevent latency pollution.
  */
 @Aspect
@@ -22,9 +23,22 @@ public class LofiInterceptor {
 
     private final MetricBuffer metricBuffer;
 
+    /**
+     * @param metricBuffer the buffer used to accumulate and flush metrics
+     */
     public LofiInterceptor(MetricBuffer metricBuffer) {
         this.metricBuffer = metricBuffer;
     }
+
+    /**
+     * Around advice that measures the wall-clock execution time of the intercepted method
+     * and records a {@link MethodMetric} on success. Exceptions are propagated unchanged
+     * and no metric is recorded.
+     *
+     * @param pjp the proceeding join point
+     * @return the return value of the intercepted method
+     * @throws Throwable if the intercepted method throws
+     */
 
     @Around("(within(@org.springframework.stereotype.Service *)" +
             " || within(@org.springframework.stereotype.Component *)" +

@@ -16,6 +16,9 @@ public class LofiDiffEndpoint {
 
     private final DiffService diffService;
 
+    /**
+     * @param diffService service used to compute latency diffs between deploys
+     */
     public LofiDiffEndpoint(DiffService diffService) {
         this.diffService = diffService;
     }

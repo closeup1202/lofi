@@ -6,11 +6,20 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+/**
+ * Initializes the lofi SQLite database on application startup.
+ * Creates the {@code ~/.lofi} directory and {@code method_metric} table if they do not exist,
+ * and purges deploys beyond the configured retention limit.
+ */
 public class LofiDatabaseInitializer implements InitializingBean {
 
     private final JdbcTemplate jdbcTemplate;
     private final int retentionCommits;
 
+    /**
+     * @param jdbcTemplate     the lofi-dedicated JDBC template connected to the SQLite database
+     * @param retentionCommits maximum number of recent deploys to retain; older rows are purged on startup
+     */
     public LofiDatabaseInitializer(JdbcTemplate jdbcTemplate, int retentionCommits) {
         this.jdbcTemplate = jdbcTemplate;
         this.retentionCommits = retentionCommits;

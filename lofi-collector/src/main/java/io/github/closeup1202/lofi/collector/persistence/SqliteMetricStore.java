@@ -20,6 +20,10 @@ public class SqliteMetricStore implements MetricStore {
     private final JdbcTemplate jdbcTemplate;
     private final DeployContext deployContext;
 
+    /**
+     * @param jdbcTemplate  the lofi-dedicated JDBC template connected to the SQLite database
+     * @param deployContext provides the current deploy's commit hash
+     */
     public SqliteMetricStore(JdbcTemplate jdbcTemplate, DeployContext deployContext) {
         this.jdbcTemplate = jdbcTemplate;
         this.deployContext = deployContext;

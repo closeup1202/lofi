@@ -25,6 +25,10 @@ public class InMemoryMetricStore implements MetricStore {
     private final DeployContext deployContext;
     private final int retentionCommits;
 
+    /**
+     * @param deployContext    provides the current deploy's commit hash
+     * @param retentionCommits maximum number of recent deploys to keep in memory
+     */
     public InMemoryMetricStore(DeployContext deployContext, int retentionCommits) {
         this.deployContext = deployContext;
         this.retentionCommits = retentionCommits;

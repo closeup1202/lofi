@@ -26,6 +26,10 @@ public class DiffServiceImpl implements DiffService {
     private final MetricStore metricStore;
     private final double regressionThreshold;
 
+    /**
+     * @param metricStore          store used to load deploy snapshots for comparison
+     * @param regressionThreshold  relative latency increase (0–1) above which a method is flagged as regressed
+     */
     public DiffServiceImpl(MetricStore metricStore, double regressionThreshold) {
         this.metricStore = metricStore;
         this.regressionThreshold = regressionThreshold;

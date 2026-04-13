@@ -37,6 +37,12 @@ public class MetricBuffer implements SchedulingConfigurer {
     private final int flushThreshold;
     private final long flushDelayMs;
 
+    /**
+     * @param metricStore    store that receives flushed metric batches
+     * @param flushThreshold queue size that triggers an immediate flush
+     * @param flushDelayMs   interval in milliseconds between periodic scheduled flushes
+     * @param queueCapacity  maximum number of metrics the buffer can hold before overflow
+     */
     public MetricBuffer(MetricStore metricStore, int flushThreshold, long flushDelayMs, int queueCapacity) {
         this.metricStore = metricStore;
         this.flushThreshold = flushThreshold;

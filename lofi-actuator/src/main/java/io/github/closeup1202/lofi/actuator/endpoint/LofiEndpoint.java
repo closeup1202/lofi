@@ -17,6 +17,9 @@ public class LofiEndpoint {
 
     private final MetricStore metricStore;
 
+    /**
+     * @param metricStore store used to retrieve deploy snapshots
+     */
     public LofiEndpoint(MetricStore metricStore) {
         this.metricStore = metricStore;
     }
