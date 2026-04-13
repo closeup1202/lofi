@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.3] - 2026-04-13
+
+### Fixed
+- Excluded Spring framework internal classes (`org.springframework.*`) from AOP instrumentation to prevent Spring Boot built-in beans (e.g. `BasicErrorController`) from appearing in metrics
+
+---
+
 ## [0.1.2] - 2026-04-13
 
 ### Fixed
@@ -75,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date       | Description                                      |
 |---------|------------|--------------------------------------------------|
+| 0.1.3   | 2026-04-13 | Exclude Spring internal classes from AOP instrumentation |
 | 0.1.2   | 2026-04-13 | Fix JPA conflict caused by lofi SQLite DataSource |
 | 0.1.1   | 2026-04-13 | Fix DataSource auto-configuration ordering       |
 | 0.1.0   | 2026-04-13 | First functional release                         |
@@ -83,6 +91,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## Upgrade Guide
+
+### From 0.1.x to 0.1.3
+
+- No API changes. Update the version and re-deploy.
+- Spring Boot internal beans (e.g. `BasicErrorController`) will no longer appear in metrics.
 
 ### From 0.1.x to 0.1.2
 
@@ -113,7 +126,9 @@ When contributing, please update this changelog:
 
 ---
 
-[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/closeup1202/lofi/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/closeup1202/lofi/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/closeup1202/lofi/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/closeup1202/lofi/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/closeup1202/lofi/releases/tag/v0.0.1

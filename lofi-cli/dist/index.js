@@ -33,19 +33,19 @@ var import_axios = __toESM(require("axios"));
 // src/error.ts
 var LofiConnectionError = class extends Error {
   constructor(url) {
-    super(`actuator\uC5D0 \uC5F0\uACB0\uD560 \uC218 \uC5C6\uC5B4\uC694: ${url}`);
+    super(`Cannot connect to actuator: ${url}`);
     this.name = "LofiConnectionError";
   }
 };
 var LofiNotFoundError = class extends Error {
   constructor(commitHash) {
-    super(`\uCEE4\uBC0B \uB370\uC774\uD130\uAC00 \uC5C6\uC5B4\uC694: ${commitHash}`);
+    super(`No data found for commit: ${commitHash}`);
     this.name = "LofiNotFoundError";
   }
 };
 var LofiUnexpectedError = class extends Error {
   constructor(message) {
-    super(`\uC608\uC0C1\uCE58 \uBABB\uD55C \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC5B4\uC694: ${message}`);
+    super(`Unexpected error: ${message}`);
     this.name = "LofiUnexpectedError";
   }
 };
@@ -96,11 +96,11 @@ var LINE = "\u2500".repeat(60);
 function renderDiff(result) {
   console.log();
   console.log(
-    import_chalk.default.bold("\uBC30\uD3EC \uBE44\uAD50") + "  " + import_chalk.default.gray(result.baseCommit.slice(0, 7)) + " \u2192 " + import_chalk.default.white(result.headCommit.slice(0, 7))
+    import_chalk.default.bold("Deploy Diff") + "  " + import_chalk.default.gray(result.baseCommit.slice(0, 7)) + " \u2192 " + import_chalk.default.white(result.headCommit.slice(0, 7))
   );
   console.log(import_chalk.default.gray(LINE));
   console.log(
-    import_chalk.default.gray("  \uBA54\uC11C\uB4DC".padEnd(45)) + import_chalk.default.gray("\uC774\uC804".padStart(8)) + import_chalk.default.gray("\uC774\uD6C4".padStart(8)) + import_chalk.default.gray("\uBCC0\uD654".padStart(10))
+    import_chalk.default.gray("  Method".padEnd(45)) + import_chalk.default.gray("Before".padStart(8)) + import_chalk.default.gray("After".padStart(8)) + import_chalk.default.gray("Delta".padStart(10))
   );
   console.log(import_chalk.default.gray(LINE));
   for (const d of result.diffs) {
@@ -118,18 +118,18 @@ function renderDiff(result) {
   console.log(import_chalk.default.gray(LINE));
   const regressions = result.diffs.filter((d) => d.regressed);
   if (regressions.length > 0) {
-    console.log(import_chalk.default.red.bold(`  \uC131\uB2A5 \uC800\uD558 ${regressions.length}\uAC74 \uAC10\uC9C0\uB428`));
+    console.log(import_chalk.default.red.bold(`  ${regressions.length} regression(s) detected`));
   } else {
-    console.log(import_chalk.default.green.bold("  \uC131\uB2A5 \uC800\uD558 \uC5C6\uC74C"));
+    console.log(import_chalk.default.green.bold("  No regressions detected"));
   }
   console.log();
 }
 function renderSnapshot(snapshot) {
   console.log();
-  console.log(import_chalk.default.bold("\uC2A4\uB0C5\uC0F7") + "  " + import_chalk.default.gray(snapshot.commitHash.slice(0, 7)));
+  console.log(import_chalk.default.bold("Snapshot") + "  " + import_chalk.default.gray(snapshot.commitHash.slice(0, 7)));
   console.log(import_chalk.default.gray(LINE));
-  console.log(import_chalk.default.gray(`  \uBC30\uD3EC \uC2DC\uAC01: ${snapshot.deployedAt}`));
-  console.log(import_chalk.default.gray(`  \uC218\uC9D1 \uBA54\uD2B8\uB9AD: ${snapshot.metrics.length}\uAC74`));
+  console.log(import_chalk.default.gray(`  Deployed at: ${snapshot.deployedAt}`));
+  console.log(import_chalk.default.gray(`  Metrics collected: ${snapshot.metrics.length}`));
   if (snapshot.metrics.length > 0) {
     const avgByMethod = /* @__PURE__ */ new Map();
     for (const m of snapshot.metrics) {
@@ -140,13 +140,13 @@ function renderSnapshot(snapshot) {
     const sorted = [...avgByMethod.entries()].sort((a, b) => b[1].total / b[1].count - a[1].total / a[1].count);
     console.log();
     console.log(
-      import_chalk.default.gray("  \uBA54\uC11C\uB4DC".padEnd(45)) + import_chalk.default.gray("\uD3C9\uADE0".padStart(8)) + import_chalk.default.gray("\uD638\uCD9C".padStart(6))
+      import_chalk.default.gray("  Method".padEnd(45)) + import_chalk.default.gray("Avg".padStart(8)) + import_chalk.default.gray("Calls".padStart(6))
     );
     console.log(import_chalk.default.gray(LINE));
     for (const [sig, { total, count }] of sorted) {
       const avg = total / count;
       console.log(import_chalk.default.gray(
-        `  ${sig.padEnd(44)} ${(avg.toFixed(0) + "ms").padStart(7)} ${String(count).padStart(4)}\uD68C`
+        `  ${sig.padEnd(44)} ${(avg.toFixed(0) + "ms").padStart(7)} ${String(count).padStart(5)}`
       ));
     }
   }
@@ -155,21 +155,21 @@ function renderSnapshot(snapshot) {
 
 // src/index.ts
 var program = new import_commander.Command();
-program.name("lofi").description("Method-level deploy diff for Spring Boot teams").version("0.1.0");
+program.name("lofi").description("Method-level deploy diff for Spring Boot teams").version("0.1.2");
 function handleError(err) {
   if (err instanceof LofiConnectionError) {
     console.error(import_chalk2.default.red(`
-\uC5F0\uACB0 \uC2E4\uD328 \u2014 ${err.message}`));
-    console.error(import_chalk2.default.gray("  --url \uC635\uC158\uC73C\uB85C actuator \uC8FC\uC18C\uB97C \uD655\uC778\uD574\uC8FC\uC138\uC694"));
+Connection failed \u2014 ${err.message}`));
+    console.error(import_chalk2.default.gray("  Check the actuator URL with the --url option"));
   } else if (err instanceof LofiNotFoundError) {
     console.error(import_chalk2.default.red(`
-\uB370\uC774\uD130 \uC5C6\uC74C \u2014 ${err.message}`));
-    console.error(import_chalk2.default.gray("  \uCEE4\uBC0B \uD574\uC2DC\uAC00 \uC62C\uBC14\uB978\uC9C0, \uD574\uB2F9 \uBC30\uD3EC \uB370\uC774\uD130\uAC00 \uC218\uC9D1\uB410\uB294\uC9C0 \uD655\uC778\uD574\uC8FC\uC138\uC694"));
+No data found \u2014 ${err.message}`));
+    console.error(import_chalk2.default.gray("  Verify the commit hash is correct and that metrics were collected for that deploy"));
   } else if (err instanceof LofiUnexpectedError) {
     console.error(import_chalk2.default.red(`
-\uC624\uB958 \u2014 ${err.message}`));
+Error \u2014 ${err.message}`));
   } else {
-    console.error(import_chalk2.default.red("\n\uC54C \uC218 \uC5C6\uB294 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC5B4\uC694"));
+    console.error(import_chalk2.default.red("\nAn unknown error occurred"));
     console.error(err);
   }
   process.exit(1);
@@ -177,8 +177,8 @@ function handleError(err) {
 program.command("diff <range>").description("Compare method latency between two deploys").option("-u, --url <url>", "actuator base url", "http://localhost:8080").action(async (range, options) => {
   const [base, head] = range.split("..");
   if (!base || !head) {
-    console.error(import_chalk2.default.red("\n\uC62C\uBC14\uB978 \uD615\uC2DD: lofi diff <base>..<head>"));
-    console.error(import_chalk2.default.gray("  \uC608\uC2DC: lofi diff a3f9c1..d82e04"));
+    console.error(import_chalk2.default.red("\nInvalid format: lofi diff <base>..<head>"));
+    console.error(import_chalk2.default.gray("  Example: lofi diff a3f9c1..d82e04"));
     process.exit(1);
   }
   try {
