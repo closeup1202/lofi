@@ -4,5 +4,6 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     implementation 'org.xerial:sqlite-jdbc:3.45.3.0'
     compileOnly 'org.springframework:spring-web'
+    compileOnly 'jakarta.servlet:jakarta.servlet-api'
     testImplementation 'org.springframework:spring-web'
 }

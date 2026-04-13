@@ -46,7 +46,8 @@ public class LofiInterceptor {
             " || within(@org.springframework.stereotype.Controller *)" +
             " || within(@org.springframework.web.bind.annotation.RestController *))" +
             " && !within(io.github.closeup1202.lofi.collector..*)" +
-            " && !within(org.springframework..*)")
+            " && !within(org.springframework..*)" +
+            " && !within(jakarta.servlet.Filter+)")
     public Object measure(ProceedingJoinPoint pjp) throws Throwable {
         long start = System.currentTimeMillis();
         Object result = pjp.proceed();
