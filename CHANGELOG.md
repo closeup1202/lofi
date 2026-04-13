@@ -9,7 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.0] - 2026-04-10
+## [0.1.1] - 2026-04-13
+
+### Fixed
+- `LofiAutoConfiguration` now runs after `DataSourceAutoConfiguration` via `@AutoConfiguration(after = DataSourceAutoConfiguration.class)`, preventing the lofi SQLite `DataSource` bean from interfering with the application's primary datasource auto-configuration
+
+---
+
+## [0.1.0] - 2026-04-13
 
 ### Added
 
@@ -54,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.0.1] - 2026-04-08
+## [0.0.1] - 2026-04-10
 
 ### Added
 - Initial project skeleton with `lofi-core` domain model
@@ -65,14 +72,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
-| Version | Date       | Description            |
-|---------|------------|------------------------|
-| 0.1.0   | 2026-04-10 | First functional release |
-| 0.0.1   | 2026-04-08 | Initial skeleton        |
+| Version | Date       | Description                                      |
+|---------|------------|--------------------------------------------------|
+| 0.1.1   | 2026-04-13 | Fix DataSource auto-configuration ordering       |
+| 0.1.0   | 2026-04-13 | First functional release                         |
+| 0.0.1   | 2026-04-10 | Initial skeleton                                 |
 
 ---
 
 ## Upgrade Guide
+
+### From 0.1.0 to 0.1.1
+
+- No API changes. Update the version and re-deploy.
+- If you added a `@Primary` `DataSource` bean as a workaround for the datasource conflict, it can be safely removed.
 
 ### From 0.0.x to 0.1.x
 
@@ -98,6 +111,7 @@ When contributing, please update this changelog:
 
 ---
 
-[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/closeup1202/lofi/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/closeup1202/lofi/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/closeup1202/lofi/releases/tag/v0.0.1
