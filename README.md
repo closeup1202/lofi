@@ -1,8 +1,8 @@
 # lofi
 
-See which methods slowed down since your last deploy — instantly.
+Git-powered latency diff for your backend.
 
-lofi is a lightweight observability library for Spring Boot teams.  
+lofi is a Git-powered observability tool for detecting latency regressions.  
 Add one dependency, deploy — and method-level latency diffs are generated automatically.
 
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-6DB33F?style=flat-square)
@@ -18,6 +18,9 @@ p99 latency spiked after your last deploy.
 To find which method caused it? Open Grafana, check Jaeger, dig through logs, read the commit diff — and connect the dots yourself, every time.
 
 lofi links deploy events to code and shows you the diff directly.
+
+Traditional observability tools show you what is slow.
+lofi shows you what changed.
 
 ---
 
