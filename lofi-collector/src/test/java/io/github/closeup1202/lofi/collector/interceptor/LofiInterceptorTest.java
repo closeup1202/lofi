@@ -10,6 +10,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.Proxy;
+
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -76,5 +78,23 @@ class LofiInterceptorTest {
         verify(metricBuffer).add(argThat(metric ->
                 metric.methodName().equals("testMethod")
         ));
+    }
+
+    @Test
+    void shouldNotRecordMetricForJdkDynamicProxy() throws Throwable {
+        // Spring Data JPA repositories are JDK dynamic proxies. In nested-proxy scenarios
+        // pjp.getTarget() returns the proxy object itself, so we skip measurement.
+        interface SampleRepository {}
+        Object jdkProxy = Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class[]{SampleRepository.class},
+                (proxy, method, args) -> null
+        );
+        given(pjp.getTarget()).willReturn(jdkProxy);
+        given(pjp.proceed()).willReturn("ok");
+
+        interceptor.measure(pjp);
+
+        verify(metricBuffer, never()).add(any(MethodMetric.class));
     }
 }

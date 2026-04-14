@@ -58,8 +58,8 @@ class LofiDeployDiffIntegrationTest {
                 @Override
                 public void save(MethodMetric metric) {
                     lofiJdbcTemplate.update(
-                            "INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ms, recorded_at) VALUES (?, ?, ?, ?, ?)",
-                            activeCommit.get(), metric.className(), metric.methodName(), metric.elapsedMs(), metric.recordedAt().toString()
+                            "INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ns, recorded_at) VALUES (?, ?, ?, ?, ?)",
+                            activeCommit.get(), metric.className(), metric.methodName(), metric.elapsedNs(), metric.recordedAt().toString()
                     );
                 }
 

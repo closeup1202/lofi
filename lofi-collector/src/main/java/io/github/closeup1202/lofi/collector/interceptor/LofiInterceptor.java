@@ -8,6 +8,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Proxy;
 import java.time.Instant;
 
 /**
@@ -22,6 +23,11 @@ import java.time.Instant;
  *   <li>Jakarta Servlet filters ({@code jakarta.servlet.Filter} and subclasses)</li>
  *   <li>Spring MVC handler interceptors ({@code HandlerInterceptor} and subclasses)</li>
  *   <li>AspectJ aspects ({@code @Aspect} annotated classes)</li>
+ *   <li>JDK dynamic proxies ({@code jdk.proxy*} / {@code $Proxy*}) — Spring Data JPA repositories
+ *       are JDK proxies, and in nested-proxy scenarios {@code pjp.getTarget()} returns the proxy
+ *       itself rather than the concrete {@code SimpleJpaRepository}. These entries produce
+ *       meaningless {@code $Proxy173}-style class names and are already captured through the
+ *       enclosing service-layer measurement.</li>
  * </ul>
  */
 @Aspect
@@ -59,13 +65,21 @@ public class LofiInterceptor {
             " && !within(@org.aspectj.lang.annotation.Aspect *)" +
             " && !within(org.springframework.web.servlet.HandlerInterceptor+)")
     public Object measure(ProceedingJoinPoint pjp) throws Throwable {
-        long start = System.currentTimeMillis();
+        // Skip JDK dynamic proxies (e.g. Spring Data JPA repositories).
+        // In nested-proxy chains pjp.getTarget() returns the proxy object itself,
+        // producing meaningless "$Proxy173"-style names. Their execution time is
+        // already captured by the enclosing service-layer measurement.
+        if (Proxy.isProxyClass(pjp.getTarget().getClass())) {
+            return pjp.proceed();
+        }
+
+        long start = System.nanoTime();
         Object result = pjp.proceed();
-        long elapsed = System.currentTimeMillis() - start;
+        long elapsedNs = System.nanoTime() - start;
         String className = pjp.getTarget().getClass().getName();
         String methodName = pjp.getSignature().getName();
         try {
-            metricBuffer.add(new MethodMetric(className, methodName, elapsed, Instant.now()));
+            metricBuffer.add(new MethodMetric(className, methodName, elapsedNs, Instant.now()));
         } catch (Exception e) {
             log.warn("[lofi] Failed to record metric for {}.{}(): {}", className, methodName, e.getMessage());
         }

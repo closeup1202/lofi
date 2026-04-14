@@ -22,13 +22,13 @@ public record DeploySnapshot(
     /**
      * Computes the average elapsed time per method signature across all recorded metrics.
      *
-     * @return a map from method signature to average latency in milliseconds
+     * @return a map from method signature to average latency in nanoseconds
      */
     public Map<String, Double> averageByMethod() {
         return metrics.stream()
                 .collect(Collectors.groupingBy(
                         MethodMetric::signature,
-                        Collectors.averagingLong(MethodMetric::elapsedMs)
+                        Collectors.averagingLong(MethodMetric::elapsedNs)
                 ));
     }
 }

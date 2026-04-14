@@ -30,9 +30,9 @@ export function renderDiff(result: DiffResult): void {
 
     for (const d of result.diffs) {
         const signature = shortSignature(d.signature).padEnd(44)
-        const base = `${d.baseMs.toFixed(0)}ms`.padStart(7)
-        const head = `${d.headMs.toFixed(0)}ms`.padStart(7)
-        const delta = `${d.deltaMs > 0 ? '+' : ''}${d.deltaMs.toFixed(0)}ms`.padStart(8)
+        const base = `${d.baseMs.toFixed(2)}ms`.padStart(9)
+        const head = `${d.headMs.toFixed(2)}ms`.padStart(9)
+        const delta = `${d.deltaMs > 0 ? '+' : ''}${d.deltaMs.toFixed(2)}ms`.padStart(10)
         const arrow = d.deltaMs > 0 ? ' ▲' : ' —'
 
         if (d.regressed) {
@@ -74,15 +74,15 @@ export function renderSnapshot(snapshot: DeploySnapshot): void {
         console.log()
         console.log(
             chalk.gray('  Method'.padEnd(45)) +
-            chalk.gray('Avg'.padStart(8)) +
+            chalk.gray('Avg'.padStart(9)) +
             chalk.gray('Calls'.padStart(7))
         )
         console.log(chalk.gray(SNAPSHOT_LINE))
 
         for (const [sig, { total, count }] of sorted) {
-            const avg = total / count
+            const avgMs = total / count
             console.log(chalk.gray(
-                `  ${shortSignature(sig).padEnd(44)} ${(avg.toFixed(0) + 'ms').padStart(7)} ${String(count).padStart(5)}`
+                `  ${shortSignature(sig).padEnd(44)} ${(avgMs.toFixed(2) + 'ms').padStart(8)} ${String(count).padStart(5)}`
             ))
         }
     }

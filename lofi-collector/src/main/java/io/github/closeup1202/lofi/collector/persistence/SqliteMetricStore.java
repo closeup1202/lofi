@@ -32,13 +32,13 @@ public class SqliteMetricStore implements MetricStore {
     @Override
     public void save(MethodMetric metric) {
         jdbcTemplate.update("""
-                        INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ms, recorded_at)
+                        INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ns, recorded_at)
                         VALUES (?, ?, ?, ?, ?)
                         """,
                 deployContext.commitHash(),
                 metric.className(),
                 metric.methodName(),
-                metric.elapsedMs(),
+                metric.elapsedNs(),
                 metric.recordedAt().toString()
         );
     }
@@ -47,9 +47,9 @@ public class SqliteMetricStore implements MetricStore {
     public void saveAll(List<MethodMetric> metrics) {
         String commitHash = deployContext.commitHash();
         jdbcTemplate.batchUpdate(
-                "INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ms, recorded_at) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ns, recorded_at) VALUES (?, ?, ?, ?, ?)",
                 metrics.stream()
-                        .map(m -> new Object[]{commitHash, m.className(), m.methodName(), m.elapsedMs(), m.recordedAt().toString()})
+                        .map(m -> new Object[]{commitHash, m.className(), m.methodName(), m.elapsedNs(), m.recordedAt().toString()})
                         .toList()
         );
     }
@@ -57,14 +57,14 @@ public class SqliteMetricStore implements MetricStore {
     @Override
     public DeploySnapshot snapshot(String commitHash) {
         List<MethodMetric> metrics = jdbcTemplate.query("""
-                        SELECT class_name, method_name, elapsed_ms, recorded_at
+                        SELECT class_name, method_name, elapsed_ns, recorded_at
                         FROM method_metric
                         WHERE commit_hash = ?
                         """,
                 (rs, rowNum) -> new MethodMetric(
                         rs.getString("class_name"),
                         rs.getString("method_name"),
-                        rs.getLong("elapsed_ms"),
+                        rs.getLong("elapsed_ns"),
                         Instant.parse(rs.getString("recorded_at"))
                 ),
                 commitHash

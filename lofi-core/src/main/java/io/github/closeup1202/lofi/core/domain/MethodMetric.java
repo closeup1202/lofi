@@ -7,13 +7,13 @@ import java.time.Instant;
  *
  * @param className  fully qualified class name of the instrumented bean
  * @param methodName name of the intercepted method
- * @param elapsedMs  wall-clock execution time in milliseconds
+ * @param elapsedNs  wall-clock execution time in nanoseconds, measured via {@link System#nanoTime()}
  * @param recordedAt timestamp when the measurement was captured
  */
 public record MethodMetric(
         String className,
         String methodName,
-        long elapsedMs,
+        long elapsedNs,
         Instant recordedAt
 ) {
     /**

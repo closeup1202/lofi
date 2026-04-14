@@ -25,7 +25,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *       implemented via {@link SchedulingConfigurer}.</li>
  * </ul>
  *
- * <p>If the queue is full, an overflow flush is attempted before dropping the metric.
+ * <p>If the queue is full, an overflow flush is attempted. If the queue remains full after
+ * the flush, the oldest buffered metric is evicted to make room for the incoming one,
+ * ensuring that recent measurements are always preserved over stale ones.
  */
 public class MetricBuffer implements SchedulingConfigurer {
 
@@ -52,7 +54,8 @@ public class MetricBuffer implements SchedulingConfigurer {
 
     /**
      * Adds a metric to the buffer. Triggers a flush if the queue reaches the threshold.
-     * If the queue is full, flushes first and retries; logs a warning if it is still full.
+     * If the queue is full, flushes first and retries; if still full, evicts the oldest
+     * buffered metric to make room so that the most recent measurement is never lost.
      *
      * @param metric the metric to buffer
      */
@@ -62,7 +65,11 @@ public class MetricBuffer implements SchedulingConfigurer {
             flush();
             boolean retried = queue.offer(metric);
             if (!retried) {
-                log.warn("[lofi] Metric dropped — queue still full after flush: {}", metric.signature());
+                // Queue is still full after flush — evict the oldest metric and insert the new one
+                // so that recent measurements always take priority over stale ones.
+                queue.poll();
+                queue.offer(metric);
+                log.warn("[lofi] Queue full after flush — oldest metric evicted to make room for: {}", metric.signature());
             }
         }
         if (queue.size() >= flushThreshold && flushing.compareAndSet(false, true)) {

@@ -49,7 +49,7 @@ public class LofiDatabaseInitializer implements InitializingBean {
                     commit_hash TEXT    NOT NULL,
                     class_name  TEXT    NOT NULL,
                     method_name TEXT    NOT NULL,
-                    elapsed_ms  INTEGER NOT NULL,
+                    elapsed_ns  INTEGER NOT NULL,
                     recorded_at TEXT    NOT NULL
                 )
                 """);

@@ -20,7 +20,7 @@ class MetricBufferTest {
     private MetricStore metricStore;
 
     private MethodMetric metric() {
-        return new MethodMetric("TestClass", "testMethod", 10L, Instant.now());
+        return new MethodMetric("TestClass", "testMethod", 10_000_000L, Instant.now()); // 10ms in ns
     }
 
     @Test

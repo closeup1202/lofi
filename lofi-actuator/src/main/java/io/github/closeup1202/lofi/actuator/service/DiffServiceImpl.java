@@ -15,11 +15,11 @@ import java.util.Map;
  *
  * <p>Computes per-method latency diffs by comparing the average elapsed time in
  * the base and head deploy snapshots. A method is flagged as regressed when
- * {@code (headMs - baseMs) / baseMs > regressionThreshold}.
+ * {@code (headNs - baseNs) / baseNs > regressionThreshold}.
  *
  * <p>Methods present only in the head deploy (new methods) are included but never
  * flagged as regressions. Methods present only in the base deploy (removed methods)
- * are included with a head latency of 0ms and {@code regressed = false}.
+ * are included with a head latency of 0 ns and {@code regressed = false}.
  */
 public class DiffServiceImpl implements DiffService {
 
@@ -45,25 +45,25 @@ public class DiffServiceImpl implements DiffService {
 
         List<MethodDiff> diffs = new ArrayList<>();
 
-        headAvg.forEach((signature, headMs) -> {
+        headAvg.forEach((signature, headNs) -> {
             boolean existsInBase = baseAvg.containsKey(signature);
-            double baseMs = existsInBase ? baseAvg.get(signature) : 0.0;
-            double deltaMs = headMs - baseMs;
+            double baseNs = existsInBase ? baseAvg.get(signature) : 0.0;
+            double deltaNs = headNs - baseNs;
             boolean regressed;
             if (!existsInBase) {
                 regressed = false; // new method, no baseline to compare
-            } else if (baseMs == 0.0) {
-                regressed = headMs > 0; // was 0ms, now has latency
+            } else if (baseNs == 0.0) {
+                regressed = headNs > 0; // was 0 ns, now has latency
             } else {
-                regressed = (deltaMs / baseMs) > regressionThreshold;
+                regressed = (deltaNs / baseNs) > regressionThreshold;
             }
-            diffs.add(new MethodDiff(signature, baseMs, headMs, deltaMs, regressed));
+            diffs.add(new MethodDiff(signature, baseNs, headNs, deltaNs, regressed));
         });
 
         // A method only in base (removed from head)
-        baseAvg.forEach((signature, baseMs) -> {
+        baseAvg.forEach((signature, baseNs) -> {
             if (!headAvg.containsKey(signature)) {
-                diffs.add(new MethodDiff(signature, baseMs, 0.0, -baseMs, false));
+                diffs.add(new MethodDiff(signature, baseNs, 0.0, -baseNs, false));
             }
         });
 

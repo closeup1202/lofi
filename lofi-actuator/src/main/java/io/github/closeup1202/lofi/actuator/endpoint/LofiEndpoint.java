@@ -1,6 +1,6 @@
 package io.github.closeup1202.lofi.actuator.endpoint;
 
-import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
+import io.github.closeup1202.lofi.actuator.endpoint.view.DeploySnapshotView;
 import io.github.closeup1202.lofi.core.port.MetricStore;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
@@ -26,12 +26,13 @@ public class LofiEndpoint {
 
     /**
      * Returns the deploy snapshot for the given commit hash.
+     * All elapsed times are expressed in milliseconds for readability.
      *
      * @param commitHash the commit hash identifying the deploy
-     * @return snapshot containing all metrics recorded for that deploy
+     * @return snapshot containing all metrics recorded for that deploy, with latencies in ms
      */
     @ReadOperation
-    public DeploySnapshot snapshot(@Selector String commitHash) {
-        return metricStore.snapshot(commitHash);
+    public DeploySnapshotView snapshot(@Selector String commitHash) {
+        return DeploySnapshotView.from(metricStore.snapshot(commitHash));
     }
 }

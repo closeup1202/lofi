@@ -112,9 +112,9 @@ function renderDiff(result) {
   console.log(import_chalk.default.gray(DIFF_LINE));
   for (const d of result.diffs) {
     const signature = shortSignature(d.signature).padEnd(44);
-    const base = `${d.baseMs.toFixed(0)}ms`.padStart(7);
-    const head = `${d.headMs.toFixed(0)}ms`.padStart(7);
-    const delta = `${d.deltaMs > 0 ? "+" : ""}${d.deltaMs.toFixed(0)}ms`.padStart(8);
+    const base = `${d.baseMs.toFixed(2)}ms`.padStart(9);
+    const head = `${d.headMs.toFixed(2)}ms`.padStart(9);
+    const delta = `${d.deltaMs > 0 ? "+" : ""}${d.deltaMs.toFixed(2)}ms`.padStart(10);
     const arrow = d.deltaMs > 0 ? " \u25B2" : " \u2014";
     if (d.regressed) {
       console.log(import_chalk.default.red(`  ${signature} ${base}  \u2192  ${head}  ${delta}${arrow}`));
@@ -147,13 +147,13 @@ function renderSnapshot(snapshot) {
     const sorted = [...avgByMethod.entries()].sort((a, b) => b[1].total / b[1].count - a[1].total / a[1].count);
     console.log();
     console.log(
-      import_chalk.default.gray("  Method".padEnd(45)) + import_chalk.default.gray("Avg".padStart(8)) + import_chalk.default.gray("Calls".padStart(7))
+      import_chalk.default.gray("  Method".padEnd(45)) + import_chalk.default.gray("Avg".padStart(9)) + import_chalk.default.gray("Calls".padStart(7))
     );
     console.log(import_chalk.default.gray(SNAPSHOT_LINE));
     for (const [sig, { total, count }] of sorted) {
-      const avg = total / count;
+      const avgMs = total / count;
       console.log(import_chalk.default.gray(
-        `  ${shortSignature(sig).padEnd(44)} ${(avg.toFixed(0) + "ms").padStart(7)} ${String(count).padStart(5)}`
+        `  ${shortSignature(sig).padEnd(44)} ${(avgMs.toFixed(2) + "ms").padStart(8)} ${String(count).padStart(5)}`
       ));
     }
   }
@@ -162,7 +162,7 @@ function renderSnapshot(snapshot) {
 
 // src/index.ts
 var program = new import_commander.Command();
-program.name("lofi").description("Method-level deploy diff for Spring Boot teams").version("0.1.4");
+program.name("lofi").description("Method-level deploy diff for Spring Boot teams").version("0.1.5");
 function handleError(err) {
   if (err instanceof LofiConnectionError) {
     console.error(import_chalk2.default.red(`

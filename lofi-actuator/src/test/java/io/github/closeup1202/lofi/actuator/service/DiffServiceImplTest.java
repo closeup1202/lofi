@@ -36,21 +36,21 @@ class DiffServiceImplTest {
     }
 
     @NonNull
-    private static DeploySnapshot getDeploySnapshot(long elapsedMs, String commitHash) {
+    private static DeploySnapshot getDeploySnapshot(long elapsedNs, String commitHash) {
         String className = "testClass";
         String methodName = "testMethod";
-        MethodMetric metric = new MethodMetric(className, methodName, elapsedMs, Instant.now());
+        MethodMetric metric = new MethodMetric(className, methodName, elapsedNs, Instant.now());
         return new DeploySnapshot(commitHash, metric.recordedAt(), List.of(metric));
     }
 
     @Test
     void shouldMarkRegressedWhenDeltaExceedsThreshold() {
         // given
-        long baseElapsedMs = 10L;
-        long headElapsedMs = 100L;
+        long baseElapsedNs = 10L;
+        long headElapsedNs = 100L;
 
-        DeploySnapshot baseDeploySnapshot = getDeploySnapshot(baseElapsedMs, baseCommit);
-        DeploySnapshot headDeploySnapshot = getDeploySnapshot(headElapsedMs, headCommit);
+        DeploySnapshot baseDeploySnapshot = getDeploySnapshot(baseElapsedNs, baseCommit);
+        DeploySnapshot headDeploySnapshot = getDeploySnapshot(headElapsedNs, headCommit);
 
         given(metricStore.snapshot(baseCommit)).willReturn(baseDeploySnapshot);
         given(metricStore.snapshot(headCommit)).willReturn(headDeploySnapshot);
@@ -63,20 +63,20 @@ class DiffServiceImplTest {
         assertThat(diffResult).isNotNull();
         assertThat(diffs).isNotEmpty();
         assertThat(diffs).hasSize(1);
-        assertThat(diffs.get(0).baseMs()).isEqualTo(baseElapsedMs);
-        assertThat(diffs.get(0).headMs()).isEqualTo(headElapsedMs);
-        assertThat(diffs.get(0).deltaMs()).isEqualTo(90L);
+        assertThat(diffs.get(0).baseNs()).isEqualTo((double) baseElapsedNs);
+        assertThat(diffs.get(0).headNs()).isEqualTo((double) headElapsedNs);
+        assertThat(diffs.get(0).deltaNs()).isEqualTo(90.0);
         assertThat(diffs.get(0).regressed()).isTrue();
     }
 
     @Test
     void shouldNotMarkRegressedWhenDeltaIsWithinThreshold() {
         // given
-        long baseElapsedMs = 100L;
-        long headElapsedMs = 119L;
+        long baseElapsedNs = 100L;
+        long headElapsedNs = 119L;
 
-        DeploySnapshot baseDeploySnapshot = getDeploySnapshot(baseElapsedMs, baseCommit);
-        DeploySnapshot headDeploySnapshot = getDeploySnapshot(headElapsedMs, headCommit);
+        DeploySnapshot baseDeploySnapshot = getDeploySnapshot(baseElapsedNs, baseCommit);
+        DeploySnapshot headDeploySnapshot = getDeploySnapshot(headElapsedNs, headCommit);
 
         given(metricStore.snapshot(baseCommit)).willReturn(baseDeploySnapshot);
         given(metricStore.snapshot(headCommit)).willReturn(headDeploySnapshot);
@@ -86,18 +86,18 @@ class DiffServiceImplTest {
         List<MethodDiff> diffs = diffResult.diffs();
 
         // then
-        assertThat(diffs.get(0).deltaMs()).isEqualTo(19L);
+        assertThat(diffs.get(0).deltaNs()).isEqualTo(19.0);
         assertThat(diffs.get(0).regressed()).isFalse();
     }
 
     @Test
     void shouldNotMarkRegressedWhenDeltaIsWithinExactlyThreshold() {
         // given
-        long baseElapsedMs = 100L;
-        long headElapsedMs = 120L;
+        long baseElapsedNs = 100L;
+        long headElapsedNs = 120L;
 
-        DeploySnapshot baseDeploySnapshot = getDeploySnapshot(baseElapsedMs, baseCommit);
-        DeploySnapshot headDeploySnapshot = getDeploySnapshot(headElapsedMs, headCommit);
+        DeploySnapshot baseDeploySnapshot = getDeploySnapshot(baseElapsedNs, baseCommit);
+        DeploySnapshot headDeploySnapshot = getDeploySnapshot(headElapsedNs, headCommit);
 
         given(metricStore.snapshot(baseCommit)).willReturn(baseDeploySnapshot);
         given(metricStore.snapshot(headCommit)).willReturn(headDeploySnapshot);
@@ -107,18 +107,18 @@ class DiffServiceImplTest {
         List<MethodDiff> diffs = diffResult.diffs();
 
         // then
-        assertThat(diffs.get(0).deltaMs()).isEqualTo(20L);
+        assertThat(diffs.get(0).deltaNs()).isEqualTo(20.0);
         assertThat(diffs.get(0).regressed()).isFalse();
     }
 
     @Test
-    void shouldMarkRegressedWhenBaseElapsedMsIsZeroAndHeadIsPositive() {
+    void shouldMarkRegressedWhenBaseElapsedNsIsZeroAndHeadIsPositive() {
         // given
-        long baseElapsedMs = 0L;
-        long headElapsedMs = 100L;
+        long baseElapsedNs = 0L;
+        long headElapsedNs = 100L;
 
-        DeploySnapshot baseDeploySnapshot = getDeploySnapshot(baseElapsedMs, baseCommit);
-        DeploySnapshot headDeploySnapshot = getDeploySnapshot(headElapsedMs, headCommit);
+        DeploySnapshot baseDeploySnapshot = getDeploySnapshot(baseElapsedNs, baseCommit);
+        DeploySnapshot headDeploySnapshot = getDeploySnapshot(headElapsedNs, headCommit);
 
         given(metricStore.snapshot(baseCommit)).willReturn(baseDeploySnapshot);
         given(metricStore.snapshot(headCommit)).willReturn(headDeploySnapshot);
@@ -128,7 +128,7 @@ class DiffServiceImplTest {
         List<MethodDiff> diffs = diffResult.diffs();
 
         // then
-        assertThat(diffs.get(0).deltaMs()).isEqualTo(100L);
+        assertThat(diffs.get(0).deltaNs()).isEqualTo(100.0);
         assertThat(diffs.get(0).regressed()).isTrue();
     }
 }

@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.6] - 2026-04-14
+
+### Added
+- **SQLite volume mount guide** in README — Docker, Docker Compose, and Kubernetes examples for persisting `~/.lofi/metrics.db` across container restarts
+- **Spring Security integration guide** in README — management port separation (recommended) and per-path `permitAll` as fallback, with a warning against opening the entire `/actuator/**` path
+- **Actuator endpoint reference** in README — `GET /actuator/lofi/{commitHash}` and `GET /actuator/lofiDiff` with request/response examples
+- **Docker Compose commit hash injection** example added to README
+
+### Changed
+- Metric elapsed time is now stored internally as **nanoseconds** (`elapsedNs`) via `System.nanoTime()` for higher precision and immunity to system clock adjustments
+- Actuator HTTP responses expose latency in **milliseconds** (`elapsedMs`, `baseMs`, `headMs`, `deltaMs`) via a dedicated view layer (`MethodMetricView`, `DeploySnapshotView`, `MethodDiffView`, `DiffResultView`) — internal domain models remain in nanoseconds
+- `LofiDiffEndpoint` changed from `@Endpoint` to `@WebEndpoint` for explicit HTTP-only semantics and improved API documentation compatibility
+- `spring-boot-starter-actuator` dependency in `lofi-actuator` promoted from `implementation` to `api` — consumers of `lofi-spring-boot-starter` now get actuator on the compile classpath automatically, enabling IDE property completion for `management.*`
+- Settings validation migrated from manual `IllegalArgumentException` in record compact constructors to **JSR-303 annotations** (`@Pattern`, `@DecimalMin`, `@DecimalMax`, `@Min`) with `@Validated` — all constraint violations are now reported at once on startup instead of stopping at the first failure
+
+### Fixed
+- **JDK dynamic proxy filtering** — `LofiInterceptor` now skips targets where `Proxy.isProxyClass()` is `true` (e.g. Spring Data JPA repositories in nested-proxy chains), eliminating meaningless `jdk.proxy2.$Proxy173`-style class names and duplicate measurements from metrics
+- **MetricBuffer overflow** — when the queue is still full after an emergency flush, the oldest buffered metric is now evicted (`queue.poll()`) to make room for the incoming one, ensuring recent measurements are never silently dropped
+
+---
+
 ## [0.1.5] - 2026-04-13
 
 ### Fixed
@@ -92,6 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date       | Description                                      |
 |---------|------------|--------------------------------------------------|
+| 0.1.6   | 2026-04-14 | Nanosecond precision, JDK proxy fix, JSR-303 validation, docs |
 | 0.1.5   | 2026-04-13 | Exclude Servlet filters, HandlerInterceptors, Aspects from AOP |
 | 0.1.3   | 2026-04-13 | Exclude Spring internal classes from AOP instrumentation |
 | 0.1.2   | 2026-04-13 | Fix JPA conflict caused by lofi SQLite DataSource |
@@ -102,6 +124,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## Upgrade Guide
+
+### From 0.1.5 to 0.1.6
+
+- **No API changes** for application code. Update the version and re-deploy.
+- The actuator JSON response fields have changed: `elapsedMs` (snapshot) and `baseMs` / `headMs` / `deltaMs` (diff) now carry **millisecond values as `double`** (e.g. `14.23`) instead of integer milliseconds. Update any tooling that parses the raw JSON.
+- `spring-boot-starter-actuator` is now a transitive compile dependency — you no longer need to declare it explicitly in your app if you were only adding it for lofi.
+- If you use Spring Data JPA, `jdk.proxy2.$Proxy*` entries will disappear from metrics automatically.
 
 ### From 0.1.x to 0.1.3
 
@@ -137,7 +166,8 @@ When contributing, please update this changelog:
 
 ---
 
-[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/closeup1202/lofi/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/closeup1202/lofi/compare/v0.1.4...v0.1.5
 [0.1.3]: https://github.com/closeup1202/lofi/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/closeup1202/lofi/compare/v0.1.1...v0.1.2
