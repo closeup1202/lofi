@@ -89,11 +89,20 @@ jobs:
           name: release-jars
           path: release-jars
 
+      - name: Extract release notes from CHANGELOG.md
+        id: changelog
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: release-jars/**/*.jar
-          generate_release_notes: true
+          body: ${{ steps.changelog.outputs.notes }}
           draft: false
           prerelease: false
         env:
