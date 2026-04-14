@@ -1,8 +1,8 @@
 import chalk from 'chalk'
 import { DiffResult, DeploySnapshot } from './client'
 
-const DIFF_LINE = '─'.repeat(78)
-const SNAPSHOT_LINE = '─'.repeat(60)
+const DIFF_LINE = '─'.repeat(84)
+const SNAPSHOT_LINE = '─'.repeat(61)
 
 function shortSignature(signature: string): string {
     const parts = signature.split('.')
@@ -20,9 +20,9 @@ export function renderDiff(result: DiffResult): void {
     console.log(chalk.gray(DIFF_LINE))
     console.log(
         chalk.gray('  Method'.padEnd(47)) +
-        chalk.gray('Before'.padStart(7)) +
+        chalk.gray('Before'.padStart(9)) +
         chalk.gray('     ') +
-        chalk.gray('After'.padStart(7)) +
+        chalk.gray('After'.padStart(9)) +
         chalk.gray('  ') +
         chalk.gray('Delta'.padStart(10))
     )
