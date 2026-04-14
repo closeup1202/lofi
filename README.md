@@ -46,7 +46,7 @@ Deploy Diff  main@a3f9c1 → main@d82e04
 **Gradle**
 
 ```groovy
-implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.1.6'
+implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.1.7'
 ```
 
 **Maven**
@@ -55,7 +55,7 @@ implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.1.6'
 <dependency>
   <groupId>io.github.closeup1202</groupId>
   <artifactId>lofi-spring-boot-starter</artifactId>
-  <version>0.1.6</version>
+  <version>0.1.7</version>
 </dependency>
 ```
 
@@ -267,7 +267,16 @@ curl "http://localhost:8080/actuator/lofiDiff?base=a3f9c1&head=d82e04"
 
 ## How It Works
 
-lofi uses Spring AOP to automatically instrument method calls on `@Service`, `@Component`, and `@Repository` beans.  
+lofi uses Spring AOP to automatically instrument method calls on the following bean types:
+`@Service`, `@Component`, `@Repository`, `@Controller`, `@RestController`
+
+The following are automatically excluded to avoid double-counting or proxy conflicts:
+
+- Spring framework internals (`org.springframework.*`)
+- Jakarta Servlet filters and Spring MVC interceptors
+- AspectJ aspects (`@Aspect`)
+- JDK dynamic proxies — Spring Data JPA repositories appear as `jdk.proxy2.$Proxy*` in nested-proxy chains, so they are skipped; their execution time is already captured through the enclosing service call
+
 Deploy boundaries are detected from the `GIT_COMMIT_HASH` environment variable at application startup.  
 Collected data is stored as a SQLite file at `~/.lofi/metrics.db`.  
 All data is processed locally. No data leaves your machine unless you opt into a dashboard.

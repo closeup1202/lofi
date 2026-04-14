@@ -1,5 +1,4 @@
 dependencies {
     api project(':lofi-core')
-    api project(':lofi-collector')
     api 'org.springframework.boot:spring-boot-starter-actuator'
 }

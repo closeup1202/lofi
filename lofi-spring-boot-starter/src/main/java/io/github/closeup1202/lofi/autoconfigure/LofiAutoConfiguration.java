@@ -11,7 +11,10 @@ import io.github.closeup1202.lofi.collector.persistence.MetricBuffer;
 import io.github.closeup1202.lofi.collector.persistence.SqliteMetricStore;
 import io.github.closeup1202.lofi.core.port.DiffService;
 import io.github.closeup1202.lofi.core.port.MetricStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -31,6 +34,8 @@ import java.nio.file.Path;
 @EnableScheduling
 @EnableConfigurationProperties(LofiProperties.class)
 public class LofiAutoConfiguration {
+
+    private static final Logger log = LoggerFactory.getLogger(LofiAutoConfiguration.class);
 
     /**
      * Creates a dedicated JdbcTemplate backed by lofi's own SQLite datasource.
@@ -109,5 +114,15 @@ public class LofiAutoConfiguration {
     @ConditionalOnMissingBean
     public LofiDiffEndpoint lofiDiffEndpoint(DiffService diffService) {
         return new LofiDiffEndpoint(diffService);
+    }
+
+    @Bean
+    public ApplicationRunner lofiStartupLogger(DeployContext deployContext, LofiProperties properties) {
+        return args -> log.info(
+                "[LO-FI] Monitoring active — commit: {} | store: {} | regression-threshold: {}",
+                deployContext.commitHash(),
+                properties.storeType(),
+                properties.regressionThreshold()
+        );
     }
 }

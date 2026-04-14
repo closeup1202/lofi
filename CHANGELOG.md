@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.7] - 2026-04-14
+
+### Added
+- **Startup log** — lofi now prints an INFO log on application startup showing the active commit hash, store type, and regression threshold, making it easy to confirm the configuration at a glance
+  ```
+  [LO-FI] Monitoring active — commit: a3f9c1 | store: sqlite | regression-threshold: 0.2
+  ```
+
+### Fixed
+- **LofiDiffEndpoint parameter validation** — `GET /actuator/lofiDiff` now returns a clear `IllegalArgumentException` with usage instructions when `base` or `head` is blank, instead of silently returning an empty result
+- **DeployContext null check cleanup** — replaced `StringUtils.hasLength()` with `commitHash != null && !commitHash.isBlank()`, removing the unnecessary Spring utility dependency in the core record
+- **README How It Works accuracy** — `@Controller` and `@RestController` added to the instrumented bean list; automatic exclusions (Spring internals, Servlet filters, MVC interceptors, AspectJ aspects, JDK dynamic proxies) now explicitly documented
+- **CLI version** — `lofi --version` now correctly reports `0.1.7` (was stuck at `0.1.5`)
+
+### Changed
+- **Debug logging in LofiInterceptor** — successful metric recordings now emit a `DEBUG`-level log (`[lofi] Recorded {class}.{method}() — {ns}ns`). Activate with `logging.level.io.github.closeup1202.lofi=DEBUG`
+
+---
+
 ## [0.1.6] - 2026-04-14
 
 ### Added
@@ -113,6 +132,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date       | Description                                      |
 |---------|------------|--------------------------------------------------|
+| 0.1.7   | 2026-04-14 | Startup log, parameter validation, debug logging, docs fixes |
 | 0.1.6   | 2026-04-14 | Nanosecond precision, JDK proxy fix, JSR-303 validation, docs |
 | 0.1.5   | 2026-04-13 | Exclude Servlet filters, HandlerInterceptors, Aspects from AOP |
 | 0.1.3   | 2026-04-13 | Exclude Spring internal classes from AOP instrumentation |
@@ -124,6 +144,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## Upgrade Guide
+
+### From 0.1.6 to 0.1.7
+
+- **No API changes.** Update the version and re-deploy.
+- A new INFO log is printed on startup — no action needed, but you can suppress it by setting `logging.level.io.github.closeup1202.lofi.autoconfigure=WARN`.
+- `GET /actuator/lofiDiff` without `base` or `head` now returns a 500 with a descriptive message instead of an empty result.
 
 ### From 0.1.5 to 0.1.6
 
@@ -166,7 +192,8 @@ When contributing, please update this changelog:
 
 ---
 
-[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/closeup1202/lofi/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/closeup1202/lofi/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/closeup1202/lofi/compare/v0.1.4...v0.1.5
 [0.1.3]: https://github.com/closeup1202/lofi/compare/v0.1.2...v0.1.3

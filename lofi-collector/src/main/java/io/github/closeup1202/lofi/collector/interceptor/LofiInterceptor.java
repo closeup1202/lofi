@@ -80,6 +80,7 @@ public class LofiInterceptor {
         String methodName = pjp.getSignature().getName();
         try {
             metricBuffer.add(new MethodMetric(className, methodName, elapsedNs, Instant.now()));
+            log.debug("[lofi] Recorded {}.{}() — {}ns", className, methodName, elapsedNs);
         } catch (Exception e) {
             log.warn("[lofi] Failed to record metric for {}.{}(): {}", className, methodName, e.getMessage());
         }

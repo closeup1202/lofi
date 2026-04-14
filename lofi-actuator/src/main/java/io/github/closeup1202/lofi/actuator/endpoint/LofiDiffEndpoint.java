@@ -4,6 +4,7 @@ import io.github.closeup1202.lofi.actuator.endpoint.view.DiffResultView;
 import io.github.closeup1202.lofi.core.port.DiffService;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
 import org.springframework.boot.actuate.endpoint.web.annotation.WebEndpoint;
+import org.springframework.util.StringUtils;
 
 /**
  * Spring Boot Actuator endpoint that computes a method-level latency diff between two deploys.
@@ -30,9 +31,16 @@ public class LofiDiffEndpoint {
      * @param base commit hash of the reference (older) deploy
      * @param head commit hash of the target (newer) deploy
      * @return diff result with per-method latency comparisons in ms and regression flags
+     * @throws IllegalArgumentException if {@code base} or {@code head} is blank
      */
     @ReadOperation
     public DiffResultView diff(String base, String head) {
+        if (!StringUtils.hasLength(base) || !StringUtils.hasLength(head)) {
+            throw new IllegalArgumentException(
+                    "Both 'base' and 'head' commit hashes are required. " +
+                    "Usage: /actuator/lofiDiff?base=<commitHash>&head=<commitHash>"
+            );
+        }
         return DiffResultView.from(diffService.diff(base, head));
     }
 }
