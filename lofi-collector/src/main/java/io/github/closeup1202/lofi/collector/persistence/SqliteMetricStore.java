@@ -1,6 +1,7 @@
 package io.github.closeup1202.lofi.collector.persistence;
 
 import io.github.closeup1202.lofi.collector.context.DeployContext;
+import io.github.closeup1202.lofi.core.domain.CommitSummary;
 import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import io.github.closeup1202.lofi.core.port.MetricStore;
@@ -51,6 +52,22 @@ public class SqliteMetricStore implements MetricStore {
                 metrics.stream()
                         .map(m -> new Object[]{commitHash, m.className(), m.methodName(), m.elapsedNs(), m.recordedAt().toString()})
                         .toList()
+        );
+    }
+
+    @Override
+    public List<CommitSummary> listCommits() {
+        return jdbcTemplate.query("""
+                        SELECT commit_hash, MIN(recorded_at) AS deployed_at, COUNT(*) AS metric_count
+                        FROM method_metric
+                        GROUP BY commit_hash
+                        ORDER BY MIN(recorded_at) DESC
+                        """,
+                (rs, rowNum) -> new CommitSummary(
+                        rs.getString("commit_hash"),
+                        Instant.parse(rs.getString("deployed_at")),
+                        rs.getLong("metric_count")
+                )
         );
     }
 

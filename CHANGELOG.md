@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.8] - 2026-04-14
+
+### Added
+- **Commit list endpoint** — `GET /actuator/lofi` now returns a summary list of all recorded deploys (commitHash, deployedAt, metricCount), ordered by deploy time descending
+- **Interactive commit selection in CLI** — `lofi diff` and `lofi snapshot` can now be run without arguments; the CLI fetches the commit list and presents an arrow-key selector instead of requiring the hash to be typed manually
+
+### Fixed
+- **Schema migration on startup** — `LofiDatabaseInitializer` now detects the old `elapsed_ms` column and automatically renames it to `elapsed_ns` (converting values ms → ns), so existing databases from ≤ 0.1.5 are migrated in place without data loss
+- **CLI table separator width** — diff separator adjusted to 84 characters and snapshot separator to 61 characters to align with actual content row widths; diff header `Before`/`After` column padding corrected to match data rows
+
+### Changed
+- `MetricStore` interface gains a `listCommits()` method — custom implementations must now override it
+- `lofi diff [range]` and `lofi snapshot [commitHash]` arguments are now optional
+
+---
+
 ## [0.1.7] - 2026-04-14
 
 ### Added
@@ -132,6 +148,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date       | Description                                      |
 |---------|------------|--------------------------------------------------|
+| 0.1.8   | 2026-04-14 | Commit list endpoint, interactive CLI commit selection, schema migration |
 | 0.1.7   | 2026-04-14 | Startup log, parameter validation, debug logging, docs fixes |
 | 0.1.6   | 2026-04-14 | Nanosecond precision, JDK proxy fix, JSR-303 validation, docs |
 | 0.1.5   | 2026-04-13 | Exclude Servlet filters, HandlerInterceptors, Aspects from AOP |
@@ -144,6 +161,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## Upgrade Guide
+
+### From 0.1.7 to 0.1.8
+
+- **`MetricStore` implementors**: `listCommits()` is now a required method. If you have a custom `MetricStore` implementation, add the override — returning an empty list is a safe no-op default.
+- **Schema migration**: existing `~/.lofi/metrics.db` databases from ≤ 0.1.5 (with `elapsed_ms` column) are migrated automatically on first startup. No manual action needed.
+- **CLI**: `lofi diff` and `lofi snapshot` arguments are now optional. Existing scripts that pass arguments directly continue to work unchanged.
 
 ### From 0.1.6 to 0.1.7
 
@@ -192,7 +215,8 @@ When contributing, please update this changelog:
 
 ---
 
-[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/closeup1202/lofi/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/closeup1202/lofi/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/closeup1202/lofi/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/closeup1202/lofi/compare/v0.1.4...v0.1.5

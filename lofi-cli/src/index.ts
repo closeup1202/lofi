@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { Command } from 'commander'
 import chalk from 'chalk'
-import { LofiClient } from './client'
+import { select } from '@inquirer/prompts'
+import { LofiClient, CommitSummary } from './client'
 import { renderDiff, renderSnapshot } from './render'
 import {
     LofiConnectionError,
@@ -32,19 +33,49 @@ function handleError(err: unknown): never {
     process.exit(1)
 }
 
+function formatCommitChoice(commit: CommitSummary): string {
+    const date = new Date(commit.deployedAt).toLocaleString()
+    return `${commit.commitHash}  (${date}, ${commit.metricCount} metrics)`
+}
+
+async function pickCommit(commits: CommitSummary[], message: string): Promise<string> {
+    if (commits.length === 0) {
+        console.error(chalk.red('\nNo recorded deploys found'))
+        console.error(chalk.gray('  Make sure the app has received traffic after startup'))
+        process.exit(1)
+    }
+    return select({
+        message,
+        choices: commits.map(c => ({ value: c.commitHash, name: formatCommitChoice(c) }))
+    })
+}
+
 program
-    .command('diff <range>')
+    .command('diff [range]')
     .description('Compare method latency between two deploys')
     .option('-u, --url <url>', 'actuator base url', 'http://localhost:8080')
-    .action(async (range: string, options: { url: string }) => {
-        const [base, head] = range.split('..')
-        if (!base || !head) {
-            console.error(chalk.red('\nInvalid format: lofi diff <base>..<head>'))
-            console.error(chalk.gray('  Example: lofi diff a3f9c1..d82e04'))
-            process.exit(1)
-        }
+    .action(async (range: string | undefined, options: { url: string }) => {
         try {
             const client = new LofiClient(options.url)
+
+            let base: string
+            let head: string
+
+            if (range) {
+                const parts = range.split('..')
+                if (!parts[0] || !parts[1]) {
+                    console.error(chalk.red('\nInvalid format: lofi diff <base>..<head>'))
+                    console.error(chalk.gray('  Example: lofi diff a3f9c1..d82e04'))
+                    process.exit(1)
+                }
+                base = parts[0]
+                head = parts[1]
+            } else {
+                const commits = await client.commits()
+                base = await pickCommit(commits, 'Select base commit (before):')
+                head = await pickCommit(commits, 'Select head commit (after):')
+            }
+
             const result = await client.diff(base, head)
             renderDiff(result)
         } catch (err) {
@@ -53,13 +84,19 @@ program
     })
 
 program
-    .command('snapshot <commitHash>')
+    .command('snapshot [commitHash]')
     .description('Show metrics for a specific deploy')
     .option('-u, --url <url>', 'actuator base url', 'http://localhost:8080')
-    .action(async (commitHash: string, options: { url: string }) => {
+    .action(async (commitHash: string | undefined, options: { url: string }) => {
         try {
             const client = new LofiClient(options.url)
-            const snapshot = await client.snapshot(commitHash)
+
+            const hash = commitHash ?? await (async () => {
+                const commits = await client.commits()
+                return pickCommit(commits, 'Select a commit to inspect:')
+            })()
+
+            const snapshot = await client.snapshot(hash)
             renderSnapshot(snapshot)
         } catch (err) {
             handleError(err)

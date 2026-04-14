@@ -1,6 +1,7 @@
 package io.github.closeup1202.lofi.collector.persistence;
 
 import io.github.closeup1202.lofi.collector.context.DeployContext;
+import io.github.closeup1202.lofi.core.domain.CommitSummary;
 import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import io.github.closeup1202.lofi.core.port.MetricStore;
@@ -58,6 +59,23 @@ public class InMemoryMetricStore implements MetricStore {
             }
         }
         return metricsByCommit.get(commitHash);
+    }
+
+    @Override
+    public List<CommitSummary> listCommits() {
+        return commitOrder.stream()
+                .map(hash -> {
+                    List<MethodMetric> metrics = List.copyOf(
+                            metricsByCommit.getOrDefault(hash, new CopyOnWriteArrayList<>())
+                    );
+                    Instant deployedAt = metrics.stream()
+                            .map(MethodMetric::recordedAt)
+                            .min(Instant::compareTo)
+                            .orElse(Instant.EPOCH);
+                    return new CommitSummary(hash, deployedAt, metrics.size());
+                })
+                .sorted((a, b) -> b.deployedAt().compareTo(a.deployedAt()))
+                .toList();
     }
 
     @Override

@@ -1,10 +1,13 @@
 package io.github.closeup1202.lofi.actuator.endpoint;
 
+import io.github.closeup1202.lofi.actuator.endpoint.view.CommitSummaryView;
 import io.github.closeup1202.lofi.actuator.endpoint.view.DeploySnapshotView;
 import io.github.closeup1202.lofi.core.port.MetricStore;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
 import org.springframework.boot.actuate.endpoint.annotation.Selector;
+
+import java.util.List;
 
 /**
  * Spring Boot Actuator endpoint that exposes deploy snapshots for a given commit hash.
@@ -22,6 +25,18 @@ public class LofiEndpoint {
      */
     public LofiEndpoint(MetricStore metricStore) {
         this.metricStore = metricStore;
+    }
+
+    /**
+     * Returns a summary list of all recorded deploys, ordered by deploy time descending.
+     *
+     * @return list of commit summaries (commitHash, deployedAt, metricCount)
+     */
+    @ReadOperation
+    public List<CommitSummaryView> commits() {
+        return metricStore.listCommits().stream()
+                .map(CommitSummaryView::from)
+                .toList();
     }
 
     /**

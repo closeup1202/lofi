@@ -2,9 +2,12 @@ package io.github.closeup1202.lofi.integration;
 
 import io.github.closeup1202.lofi.collector.context.DeployContext;
 import io.github.closeup1202.lofi.collector.persistence.SqliteMetricStore;
+import io.github.closeup1202.lofi.core.domain.CommitSummary;
 import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import io.github.closeup1202.lofi.core.port.MetricStore;
+
+import java.util.List;
 import io.github.closeup1202.lofi.integration.fixture.TestApplication;
 import io.github.closeup1202.lofi.integration.fixture.TestService;
 import org.junit.jupiter.api.*;
@@ -66,6 +69,11 @@ class LofiDeployDiffIntegrationTest {
                 @Override
                 public DeploySnapshot snapshot(String commitHash) {
                     return new SqliteMetricStore(lofiJdbcTemplate, new DeployContext(commitHash)).snapshot(commitHash);
+                }
+
+                @Override
+                public List<CommitSummary> listCommits() {
+                    return new SqliteMetricStore(lofiJdbcTemplate, new DeployContext("")).listCommits();
                 }
             };
         }

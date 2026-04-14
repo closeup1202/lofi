@@ -1,5 +1,6 @@
 package io.github.closeup1202.lofi.core.port;
 
+import io.github.closeup1202.lofi.core.domain.CommitSummary;
 import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
 
@@ -30,6 +31,14 @@ public interface MetricStore {
      * @return a snapshot containing all metrics and the inferred deploy time
      */
     DeploySnapshot snapshot(String commitHash);
+
+    /**
+     * Returns a summary of all recorded deploys, ordered by deploy time descending (most recent first).
+     * Each entry contains the commit hash, first-seen time, and total metric count.
+     *
+     * @return list of commit summaries
+     */
+    List<CommitSummary> listCommits();
 
     /**
      * Persists a batch of metrics. Defaults to calling {@link #save} for each element;

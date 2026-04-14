@@ -5,6 +5,12 @@ import {
     LofiUnexpectedError
 } from './error'
 
+export interface CommitSummary {
+    commitHash: string
+    deployedAt: string
+    metricCount: number
+}
+
 export interface MethodDiff {
     signature: string
     baseMs: number
@@ -37,6 +43,10 @@ export class LofiClient {
 
     constructor(baseUrl: string) {
         this.baseUrl = baseUrl.replace(/\/$/, '')
+    }
+
+    async commits(): Promise<CommitSummary[]> {
+        return this.request(() => axios.get(`${this.baseUrl}/actuator/lofi`))
     }
 
     async diff(base: string, head: string): Promise<DiffResult> {

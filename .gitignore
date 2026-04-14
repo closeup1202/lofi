@@ -41,3 +41,7 @@ org/
 
 ### claude ###
 .claude/
+
+### CLI (lofi-cli) ###
+lofi-cli/node_modules/
+lofi-cli/dist/

@@ -47,7 +47,7 @@ Deploy Diff  main@a3f9c1 → main@d82e04
 **Gradle**
 
 ```groovy
-implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.1.7'
+implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.1.8'
 ```
 
 **Maven**
@@ -56,7 +56,7 @@ implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.1.7'
 <dependency>
   <groupId>io.github.closeup1202</groupId>
   <artifactId>lofi-spring-boot-starter</artifactId>
-  <version>0.1.7</version>
+  <version>0.1.8</version>
 </dependency>
 ```
 

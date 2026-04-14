@@ -25,7 +25,7 @@ npm install -g @closeup1202/lofi-cli
 Verify the installation:
 
 ```bash
-lofi --version  # 0.1.7
+lofi --version  # 0.1.8
 lofi --help
 ```
 
@@ -153,7 +153,7 @@ lofi diff a3f9c1..d82e04 --url http://localhost:8080
 **1. Add the library to your Spring Boot app**
 
 ```groovy
-implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.1.7'
+implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.1.8'
 ```
 
 **2. Expose actuator endpoints**
