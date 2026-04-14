@@ -8,6 +8,7 @@ Add one dependency, deploy — and method-level latency diffs are generated auto
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-6DB33F?style=flat-square)
 ![Java](https://img.shields.io/badge/Java-17%2B-ED8B00?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
+![Maven Central](https://img.shields.io/maven-central/v/io.github.closeup1202/lofi-spring-boot-starter)
 
 ---
 
