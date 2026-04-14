@@ -387,7 +387,6 @@ lofi:
 
 - Currently works in single-pod environments only. Multi-pod support is available in the dashboard plan.
 - Requires Spring Boot 3.x and Java 17 or higher.
-- Only `@Service`, `@Component`, and `@Repository` beans are instrumented automatically.
 
 ---
 
