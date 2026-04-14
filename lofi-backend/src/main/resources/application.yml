@@ -1,0 +1,12 @@
+server:
+  port: 9292
+
+spring:
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+lofi:
+  backend:
+    db-path: ${user.home}/.lofi/metrics.db
+    regression-threshold: 0.2

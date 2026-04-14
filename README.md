@@ -40,14 +40,29 @@ Deploy Diff  main@a3f9c1 → main@d82e04
 
 ---
 
-## Getting Started
+## Two Deployment Modes
+
+lofi supports two modes depending on how your app is instrumented.
+
+| | Actuator mode | Backend mode |
+|---|---|---|
+| **Instrumentation** | `lofi-spring-boot-starter` (AOP) | OpenTelemetry Java Agent |
+| **Data collection** | In-process (Spring AOP) | `lofi-otelcol` → `lofi-backend` |
+| **Setup** | One dependency | `lofi-otelcol` binary + `lofi-backend` server |
+| **Best for** | Spring Boot apps only | Any JVM app, polyglot stacks |
+
+The CLI detects the mode automatically from the `--url` target — no extra flags needed.
+
+---
+
+## Actuator Mode (Spring Boot AOP)
 
 ### 1. Add the dependency
 
 **Gradle**
 
 ```groovy
-implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.1.8'
+implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.2.0'
 ```
 
 **Maven**
@@ -56,7 +71,7 @@ implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.1.8'
 <dependency>
   <groupId>io.github.closeup1202</groupId>
   <artifactId>lofi-spring-boot-starter</artifactId>
-  <version>0.1.8</version>
+  <version>0.2.0</version>
 </dependency>
 ```
 
@@ -110,31 +125,20 @@ services:
 GIT_COMMIT_HASH=$(git rev-parse --short HEAD) docker compose up
 ```
 
-**Kubernetes**
-
-```yaml
-env:
-  - name: GIT_COMMIT_HASH
-    value: "a3f9c1"
-```
-
-### 3. Expose actuator endpoints
+### 3. Expose the actuator endpoint
 
 ```yaml
 management:
   endpoints:
     web:
       exposure:
-        include: lofi, lofiDiff
+        include: lofi
 ```
 
 > **If your application uses Spring Security**, the actuator endpoints are blocked by default.
 > Choose one of the following approaches.
 
 **Option A — Management port separation (recommended)**
-
-Isolate actuator on a separate internal port so it is never reachable from the public network.
-No changes to your Security configuration are needed.
 
 ```yaml
 management:
@@ -143,10 +147,8 @@ management:
   endpoints:
     web:
       exposure:
-        include: lofi, lofiDiff
+        include: lofi
 ```
-
-Point the CLI at the internal port:
 
 ```bash
 lofi diff a3f9c1..d82e04 --url http://localhost:9090
@@ -154,13 +156,11 @@ lofi diff a3f9c1..d82e04 --url http://localhost:9090
 
 **Option B — Permit only the lofi paths**
 
-If port separation is not an option, allow only the lofi endpoints explicitly.
-
 ```java
 @Bean
 public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http.authorizeHttpRequests(auth -> auth
-        .requestMatchers("/actuator/lofi/**", "/actuator/lofiDiff").permitAll()
+        .requestMatchers("/actuator/lofi/**").permitAll()
         .anyRequest().authenticated()
     );
     return http.build();
@@ -170,51 +170,132 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
 > Avoid `permitAll()` on the entire `/actuator/**` path — endpoints such as
 > `/actuator/env` and `/actuator/heapdump` can leak sensitive information.
 
-### 4. Install lofi-cli
+### 4. Install lofi-cli and run
 
 ```bash
 npm install -g @closeup1202/lofi-cli
+lofi diff a3f9c1..d82e04 --url http://localhost:8080
 ```
 
 ---
 
-## Usage
+## Backend Mode (OpenTelemetry Pipeline)
+
+Backend mode collects traces via the OpenTelemetry Java Agent, so no library dependency is needed in your app.
+
+### Architecture
+
+```
+Your App (OTel Agent)
+    │  OTLP (HTTP :4318 / gRPC :4317)
+    ▼
+lofi-otelcol  (custom OTel Collector)
+    │  POST /lofi/ingest
+    ▼
+lofi-backend  (REST API :9292)
+    │
+    ▼  lofi-cli
+```
+
+### Option A — Docker Compose (recommended)
+
+```bash
+# Start lofi-backend + lofi-otelcol
+docker compose up
+
+# Run your app with the OTel agent
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 \
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf \
+OTEL_RESOURCE_ATTRIBUTES=deployment.commit.hash=$(git rev-parse --short HEAD) \
+OTEL_TRACES_SAMPLER=always_on \
+OTEL_METRICS_EXPORTER=none \
+OTEL_LOGS_EXPORTER=none \
+java -javaagent:opentelemetry-javaagent.jar -jar your-app.jar
+```
+
+```bash
+# Query via CLI
+lofi diff a3f9c1..d82e04 --url http://localhost:9292
+```
+
+### Option B — Binary install
+
+```bash
+# Install lofi-otelcol
+curl -fsSL https://raw.githubusercontent.com/closeup1202/lofi/main/install.sh | sh
+
+# Start lofi-backend
+./gradlew :lofi-backend:bootRun
+
+# Start the collector
+lofi-otelcol --config collector-config.yaml
+```
+
+`collector-config.yaml`:
+
+```yaml
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 5s
+
+exporters:
+  lofi:
+    backend_url: http://localhost:9292
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [lofi]
+```
+
+---
+
+## CLI Usage
 
 ### diff — compare performance between two deploys
 
 ```bash
-lofi diff <base>..<head> --url http://localhost:8080
+lofi diff <base>..<head> --url <url>
+lofi diff                             # interactive commit selector
 ```
 
 ```bash
-# example
-lofi diff a3f9c1..d82e04 --url http://localhost:8080
+lofi diff a3f9c1..d82e04 --url http://localhost:8080   # actuator mode
+lofi diff a3f9c1..d82e04 --url http://localhost:9292   # backend mode
 ```
 
 ### snapshot — view metrics for a specific deploy
 
 ```bash
-lofi snapshot <commitHash> --url http://localhost:8080
+lofi snapshot <commitHash> --url <url>
+lofi snapshot                         # interactive commit selector
 ```
 
-```bash
-# example
-lofi snapshot a3f9c1 --url http://localhost:8080
-```
+The `--url` / `-U` flag defaults to `http://localhost:8080`. The CLI auto-detects whether the target is a `lofi-backend` instance or a `lofi-actuator` endpoint — no extra configuration needed.
 
 ---
 
-## Checking via Actuator Endpoints
+## API Reference
 
-If you prefer raw JSON or want to integrate with your own tooling, you can query the actuator endpoints directly.
+Both modes expose the same logical API. Paths differ by prefix.
 
-### GET /actuator/lofi/{commitHash}
+| Operation | Actuator | Backend |
+|---|---|---|
+| List commits | `GET /actuator/lofi` | `GET /lofi/commits` |
+| Snapshot | `GET /actuator/lofi/{hash}` | `GET /lofi/snapshot/{hash}` |
+| Diff | `GET /actuator/lofi/diff?base=X&head=Y` | `GET /lofi/diff?base=X&head=Y` |
 
-Returns all raw metrics collected for a given deploy.
-
-```bash
-curl http://localhost:8080/actuator/lofi/a3f9c1
-```
+### Snapshot response
 
 ```json
 {
@@ -231,13 +312,7 @@ curl http://localhost:8080/actuator/lofi/a3f9c1
 }
 ```
 
-### GET /actuator/lofiDiff?base={baseCommit}&head={headCommit}
-
-Computes a method-level latency diff between two deploys and flags regressions.
-
-```bash
-curl "http://localhost:8080/actuator/lofiDiff?base=a3f9c1&head=d82e04"
-```
+### Diff response
 
 ```json
 {
@@ -250,13 +325,6 @@ curl "http://localhost:8080/actuator/lofiDiff?base=a3f9c1&head=d82e04"
       "headMs": 91.00,
       "deltaMs": 76.77,
       "regressed": true
-    },
-    {
-      "signature": "com.example.UserService.findById()",
-      "baseMs": 3.10,
-      "headMs": 3.20,
-      "deltaMs": 0.10,
-      "regressed": false
     }
   ]
 }
@@ -268,47 +336,31 @@ curl "http://localhost:8080/actuator/lofiDiff?base=a3f9c1&head=d82e04"
 
 ## How It Works
 
-lofi uses Spring AOP to automatically instrument method calls on the following bean types:
-`@Service`, `@Component`, `@Repository`, `@Controller`, `@RestController`
+**Actuator mode** — lofi uses Spring AOP to automatically instrument method calls on the following bean types: `@Service`, `@Component`, `@Repository`, `@Controller`, `@RestController`
 
 The following are automatically excluded to avoid double-counting or proxy conflicts:
-
 - Spring framework internals (`org.springframework.*`)
 - Jakarta Servlet filters and Spring MVC interceptors
 - AspectJ aspects (`@Aspect`)
 - JDK dynamic proxies — Spring Data JPA repositories appear as `jdk.proxy2.$Proxy*` in nested-proxy chains, so they are skipped; their execution time is already captured through the enclosing service call
 
-Deploy boundaries are detected from the `GIT_COMMIT_HASH` environment variable at application startup.  
-Collected data is stored as a SQLite file at `~/.lofi/metrics.db`.  
-All data is processed locally. No data leaves your machine unless you opt into a dashboard.
+**Backend mode** — the OpenTelemetry Java Agent instruments the JVM at the bytecode level. Spans are exported to `lofi-otelcol`, which extracts span duration and commit hash (`deployment.commit.hash` resource attribute) and forwards them to `lofi-backend`.
+
+In both modes, collected data is stored locally in SQLite. No data leaves your environment.
 
 ---
 
 ## Persisting the SQLite Database
 
-lofi stores all metrics in `~/.lofi/metrics.db` inside the container.  
-Without a volume mount, the file is lost on every container restart, making deploy-to-deploy diff comparison impossible.
+### Actuator mode
 
-### Docker
+lofi stores metrics in `~/.lofi/metrics.db` inside the container. Mount a volume to survive restarts.
 
-```bash
-docker run \
-  -e GIT_COMMIT_HASH=$(git rev-parse --short HEAD) \
-  -v $HOME/.lofi:/root/.lofi \
-  my-app
-```
-
-### Docker Compose
+**Docker Compose**
 
 ```yaml
 services:
   app:
-    build:
-      context: .
-      args:
-        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH}
-    environment:
-      - GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
     volumes:
       - lofi-data:/root/.lofi
 
@@ -316,41 +368,22 @@ volumes:
   lofi-data:
 ```
 
-> Using a named volume (`lofi-data`) keeps the database across container recreations.  
-> If you prefer a host-mounted path, replace with `- $HOME/.lofi:/root/.lofi`.
+### Backend mode
+
+`lofi-backend` stores metrics at the path configured by `LOFI_BACKEND_DB_PATH` (default: `/data/metrics.db`). The provided `docker-compose.yml` mounts a named volume automatically.
 
 ### Kubernetes
 
-Mount a `PersistentVolumeClaim` at `/root/.lofi` so the database survives pod restarts.
-
-```yaml
-spec:
-  containers:
-    - name: app
-      env:
-        - name: GIT_COMMIT_HASH
-          value: "a3f9c1"
-      volumeMounts:
-        - name: lofi-storage
-          mountPath: /root/.lofi
-  volumes:
-    - name: lofi-storage
-      persistentVolumeClaim:
-        claimName: lofi-pvc
-```
+Mount a `PersistentVolumeClaim` at `/root/.lofi` (actuator mode) or `/data` (backend mode) so the database survives pod restarts.
 
 > **Note:** In multi-pod environments, each pod writes to its own volume.  
 > Cross-pod metric aggregation is not yet supported — see [Limitations](#limitations).
-
-### Local development (non-containerized)
-
-No action needed. lofi writes to `~/.lofi/metrics.db` on the host directly and the file persists across restarts.
 
 ---
 
 ## Configuration
 
-You can tune collection behavior in `application.yml`.
+### Actuator mode (`application.yml`)
 
 ```yaml
 lofi:
@@ -363,12 +396,11 @@ lofi:
     queue-capacity: 1000          # max buffer queue capacity (default: 1000)
 ```
 
-### Store types
+### Backend mode (environment variables)
 
-| store-type | Description |
-|------------|-------------|
-| `sqlite` | Persisted to `~/.lofi/metrics.db` (default) |
-| `in-memory` | In-memory only, data lost on restart. Recommended for test/dev environments |
+| Variable | Default | Description |
+|---|---|---|
+| `LOFI_BACKEND_DB_PATH` | `/data/metrics.db` | SQLite database path |
 
 ---
 

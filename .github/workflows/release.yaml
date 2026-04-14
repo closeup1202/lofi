@@ -12,6 +12,42 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  build-otelcol:
+    name: Build lofi-otelcol (${{ matrix.goos }}-${{ matrix.goarch }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin]
+        goarch: [amd64, arm64]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: lofi-otel-exporter/go.sum
+
+      - name: Install OCB
+        run: go install go.opentelemetry.io/collector/cmd/builder@v0.123.0
+
+      - name: Build lofi-otelcol
+        working-directory: lofi-otel-exporter
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'
+        run: |
+          builder --config ocb-config.yaml --skip-strict-versioning
+          mv dist/lofi-otelcol dist/lofi-otelcol-${{ matrix.goos }}-${{ matrix.goarch }}
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: lofi-otelcol-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: lofi-otel-exporter/dist/lofi-otelcol-${{ matrix.goos }}-${{ matrix.goarch }}
+
   build:
     name: Build and Test
     runs-on: ubuntu-latest
@@ -78,7 +114,7 @@ jobs:
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: publish
+    needs: [publish, build-otelcol]
 
     steps:
       - uses: actions/checkout@v5
@@ -88,6 +124,13 @@ jobs:
         with:
           name: release-jars
           path: release-jars
+
+      - name: Download lofi-otelcol binaries
+        uses: actions/download-artifact@v5
+        with:
+          pattern: lofi-otelcol-*
+          path: otelcol-binaries
+          merge-multiple: true
 
       - name: Extract release notes from CHANGELOG.md
         id: changelog
@@ -101,7 +144,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: release-jars/**/*.jar
+          files: |
+            release-jars/**/*.jar
+            otelcol-binaries/lofi-otelcol-*
           body: ${{ steps.changelog.outputs.notes }}
           draft: false
           prerelease: false

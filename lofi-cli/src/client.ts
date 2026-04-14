@@ -38,30 +38,52 @@ export interface DeploySnapshot {
     metrics: MethodMetric[]
 }
 
+type Mode = 'backend' | 'actuator'
+
 export class LofiClient {
     private readonly baseUrl: string
+    private mode: Mode | null = null
 
     constructor(baseUrl: string) {
         this.baseUrl = baseUrl.replace(/\/$/, '')
     }
 
+    private async resolveMode(): Promise<Mode> {
+        if (this.mode) return this.mode
+        try {
+            await axios.get(`${this.baseUrl}/lofi/commits`, { timeout: 3000 })
+            this.mode = 'backend'
+        } catch (err) {
+            if (axios.isAxiosError(err) && !err.response) {
+                throw new LofiConnectionError(this.baseUrl)
+            }
+            this.mode = 'actuator'
+        }
+        return this.mode
+    }
+
     async commits(): Promise<CommitSummary[]> {
-        return this.request(() => axios.get(`${this.baseUrl}/actuator/lofi`))
+        const mode = await this.resolveMode()
+        const url = mode === 'backend'
+            ? `${this.baseUrl}/lofi/commits`
+            : `${this.baseUrl}/actuator/lofi`
+        return this.request(() => axios.get(url))
     }
 
     async diff(base: string, head: string): Promise<DiffResult> {
-        return this.request(() =>
-            axios.get(`${this.baseUrl}/actuator/lofiDiff`, {
-                params: { base, head }
-            })
-        )
+        const mode = await this.resolveMode()
+        const url = mode === 'backend'
+            ? `${this.baseUrl}/lofi/diff`
+            : `${this.baseUrl}/actuator/lofi/diff`
+        return this.request(() => axios.get(url, { params: { base, head } }))
     }
 
     async snapshot(commitHash: string): Promise<DeploySnapshot> {
-        return this.request(
-            () => axios.get(`${this.baseUrl}/actuator/lofi/${commitHash}`),
-            commitHash
-        )
+        const mode = await this.resolveMode()
+        const url = mode === 'backend'
+            ? `${this.baseUrl}/lofi/snapshot/${commitHash}`
+            : `${this.baseUrl}/actuator/lofi/${commitHash}`
+        return this.request(() => axios.get(url), commitHash)
     }
 
     private async request<T>(
@@ -80,9 +102,7 @@ export class LofiClient {
                 if (axiosErr.response.status === 404 && commitHash) {
                     throw new LofiNotFoundError(commitHash)
                 }
-                throw new LofiUnexpectedError(
-                    `HTTP ${axiosErr.response.status}`
-                )
+                throw new LofiUnexpectedError(`HTTP ${axiosErr.response.status}`)
             }
             throw new LofiUnexpectedError((err as Error).message)
         }

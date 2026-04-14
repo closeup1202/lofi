@@ -1,0 +1,32 @@
+services:
+  lofi-backend:
+    build:
+      context: .
+      dockerfile: lofi-backend/Dockerfile
+    ports:
+      - "9292:9292"
+    volumes:
+      - lofi-data:/data
+    environment:
+      - LOFI_BACKEND_DB_PATH=/data/metrics.db
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9292/lofi/commits"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  lofi-otelcol:
+    build:
+      context: lofi-otel-exporter
+      dockerfile: Dockerfile
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./lofi-otel-exporter/collector-config-docker.yaml:/etc/otelcol/config.yaml
+    depends_on:
+      lofi-backend:
+        condition: service_healthy
+
+volumes:
+  lofi-data:

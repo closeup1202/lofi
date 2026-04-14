@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-04-14
+
+### Added
+- **`lofi-backend`** — standalone Spring Boot server that accepts OTLP-derived metrics and exposes them via REST API
+  - `POST /lofi/ingest` — ingests span data forwarded from `lofi-otelcol`
+  - `GET /lofi/commits` — list of all recorded deploys
+  - `GET /lofi/snapshot/{commitHash}` — per-method metrics for a specific deploy
+  - `GET /lofi/diff?base=X&head=Y` — method-level latency diff between two deploys
+- **`lofi-otelcol`** — custom OpenTelemetry Collector binary built with OCB
+  - Receives OTLP traces (gRPC `:4317`, HTTP `:4318`) and forwards metrics to `lofi-backend`
+  - Cross-platform binaries available: `linux-amd64`, `linux-arm64`, `darwin-amd64`, `darwin-arm64`
+- **`install.sh`** — one-line installer for `lofi-otelcol` binary (detects OS and arch automatically)
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/closeup1202/lofi/main/install.sh | sh
+  ```
+- **`docker-compose.yml`** — runs `lofi-backend` + `lofi-otelcol` together with a single command
+  ```bash
+  docker compose up
+  ```
+- **GitHub Actions** — cross-platform `lofi-otelcol` binaries built and uploaded to GitHub Releases on every `v*` tag push
+- **Shared view layer in `lofi-core`** — `DeploySnapshotView`, `DiffResultView`, `MethodMetricView`, `MethodDiffView` centralize ns→ms conversion on the server side; both actuator and backend use the same view classes
+
+### Changed
+- **Actuator diff endpoint consolidated** — `LofiDiffEndpoint` (`@WebEndpoint(id="lofiDiff")`) merged into `LofiEndpoint`
+  - Before: `GET /actuator/lofiDiff?base=X&head=Y`
+  - After: `GET /actuator/lofi/diff?base=X&head=Y`
+  - `management.endpoints.web.exposure.include: lofi` is now sufficient — `lofiDiff` no longer needed
+- **CLI `--url` / `-U` unification** — the CLI now auto-detects whether the target is `lofi-backend` or `lofi-actuator` by probing `GET /lofi/commits`; no separate mode flag is needed
+- **ns→ms conversion moved to server side** — actuator and backend both return `elapsedMs`, `baseMs`, `headMs`, `deltaMs` as `double`; the CLI no longer performs any unit conversion
+- **Spring Boot upgraded 3.3.0 → 3.5.12**
+
+### Security
+- **CVE-2026-22733** — upgraded Spring Boot from `3.3.0` to `3.5.12` to address the Spring Security authentication bypass vulnerability affecting CloudFoundry Actuator endpoint paths. The 3.3.x release line does not carry a patch; upgrading to the `3.5.12` release is the recommended fix.
+
+---
+
 ## [0.1.8] - 2026-04-14
 
 ### Added
@@ -148,6 +184,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date       | Description                                      |
 |---------|------------|--------------------------------------------------|
+| 0.2.0   | 2026-04-14 | lofi-backend, lofi-otelcol, OTel pipeline, Docker, actuator endpoint consolidation, CVE fix |
 | 0.1.8   | 2026-04-14 | Commit list endpoint, interactive CLI commit selection, schema migration |
 | 0.1.7   | 2026-04-14 | Startup log, parameter validation, debug logging, docs fixes |
 | 0.1.6   | 2026-04-14 | Nanosecond precision, JDK proxy fix, JSR-303 validation, docs |
@@ -162,6 +199,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Upgrade Guide
 
+### From 0.1.x to 0.2.0
+
+**Actuator endpoint change (breaking)**
+
+The diff endpoint path has changed. Update any scripts or tooling that call it directly.
+
+```yaml
+# Before
+GET /actuator/lofiDiff?base=X&head=Y
+
+# After
+GET /actuator/lofi/diff?base=X&head=Y
+```
+
+**`management.endpoints.web.exposure.include`**
+
+Remove `lofiDiff` — only `lofi` is needed now.
+
+```yaml
+# Before
+management:
+  endpoints:
+    web:
+      exposure:
+        include: lofi, lofiDiff
+
+# After
+management:
+  endpoints:
+    web:
+      exposure:
+        include: lofi
+```
+
+**Spring Security config**
+
+```java
+// Before
+.requestMatchers("/actuator/lofi/**", "/actuator/lofiDiff").permitAll()
+
+// After
+.requestMatchers("/actuator/lofi/**").permitAll()
+```
+
+**CLI**
+
+The `--url` / `-U` flag is the only flag needed — mode (backend vs actuator) is auto-detected. Existing scripts that pass `--url` continue to work unchanged.
+
 ### From 0.1.7 to 0.1.8
 
 - **`MetricStore` implementors**: `listCommits()` is now a required method. If you have a custom `MetricStore` implementation, add the override — returning an empty list is a safe no-op default.
@@ -171,20 +256,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### From 0.1.6 to 0.1.7
 
 - **No API changes.** Update the version and re-deploy.
-- A new INFO log is printed on startup — no action needed, but you can suppress it by setting `logging.level.io.github.closeup1202.lofi.autoconfigure=WARN`.
-- `GET /actuator/lofiDiff` without `base` or `head` now returns a 500 with a descriptive message instead of an empty result.
 
 ### From 0.1.5 to 0.1.6
 
 - **No API changes** for application code. Update the version and re-deploy.
 - The actuator JSON response fields have changed: `elapsedMs` (snapshot) and `baseMs` / `headMs` / `deltaMs` (diff) now carry **millisecond values as `double`** (e.g. `14.23`) instead of integer milliseconds. Update any tooling that parses the raw JSON.
-- `spring-boot-starter-actuator` is now a transitive compile dependency — you no longer need to declare it explicitly in your app if you were only adding it for lofi.
-- If you use Spring Data JPA, `jdk.proxy2.$Proxy*` entries will disappear from metrics automatically.
-
-### From 0.1.x to 0.1.3
-
-- No API changes. Update the version and re-deploy.
-- Spring Boot internal beans (e.g. `BasicErrorController`) will no longer appear in metrics.
 
 ### From 0.1.x to 0.1.2
 
@@ -195,7 +271,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Replace any direct `MetricStore` usage with the auto-configured bean
 - Set `lofi.commit-hash` via environment variable `GIT_COMMIT_HASH` in your deployment pipeline
-- Expose actuator endpoints: `management.endpoints.web.exposure.include=lofi,lofiDiff`
+- Expose actuator endpoints: `management.endpoints.web.exposure.include=lofi`
 
 ---
 
@@ -215,7 +291,8 @@ When contributing, please update this changelog:
 
 ---
 
-[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/closeup1202/lofi/compare/v0.1.8...v0.2.0
 [0.1.8]: https://github.com/closeup1202/lofi/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/closeup1202/lofi/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/closeup1202/lofi/compare/v0.1.5...v0.1.6

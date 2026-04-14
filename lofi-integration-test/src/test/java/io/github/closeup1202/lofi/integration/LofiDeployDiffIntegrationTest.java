@@ -75,6 +75,11 @@ class LofiDeployDiffIntegrationTest {
                 public List<CommitSummary> listCommits() {
                     return new SqliteMetricStore(lofiJdbcTemplate, new DeployContext("")).listCommits();
                 }
+
+                @Override
+                public void ingest(String commitHash, List<MethodMetric> metrics) {
+                    throw new UnsupportedOperationException();
+                }
             };
         }
     }
@@ -131,7 +136,7 @@ class LofiDeployDiffIntegrationTest {
     @Test
     @Order(3)
     void detectRegressionInDiffBetweenDeployAAndB() throws Exception {
-        mockMvc.perform(get("/actuator/lofiDiff")
+        mockMvc.perform(get("/actuator/lofi/diff")
                         .param("base", BASE_COMMIT)
                         .param("head", HEAD_COMMIT))
                 .andExpect(status().isOk())

@@ -15,12 +15,12 @@ const program = new Command()
 program
     .name('lofi')
     .description('Method-level deploy diff for Spring Boot teams')
-    .version('0.1.9')
+    .version('0.2.0')
 
 function handleError(err: unknown): never {
     if (err instanceof LofiConnectionError) {
         console.error(chalk.red(`\nConnection failed — ${err.message}`))
-        console.error(chalk.gray('  Check the actuator URL with the --url option'))
+        console.error(chalk.gray('  Check the URL with the --url option'))
     } else if (err instanceof LofiNotFoundError) {
         console.error(chalk.red(`\nNo data found — ${err.message}`))
         console.error(chalk.gray('  Verify the commit hash is correct and that metrics were collected for that deploy'))
@@ -53,7 +53,7 @@ async function pickCommit(commits: CommitSummary[], message: string): Promise<st
 program
     .command('diff [range]')
     .description('Compare method latency between two deploys')
-    .option('-u, --url <url>', 'actuator base url', 'http://localhost:8080')
+    .option('-U, --url <url>', 'server base url', 'http://localhost:8080')
     .action(async (range: string | undefined, options: { url: string }) => {
         try {
             const client = new LofiClient(options.url)
@@ -86,7 +86,7 @@ program
 program
     .command('snapshot [commitHash]')
     .description('Show metrics for a specific deploy')
-    .option('-u, --url <url>', 'actuator base url', 'http://localhost:8080')
+    .option('-U, --url <url>', 'server base url', 'http://localhost:8080')
     .action(async (commitHash: string | undefined, options: { url: string }) => {
         try {
             const client = new LofiClient(options.url)

@@ -11,8 +11,9 @@ Terminal CLI for [lofi](https://github.com/closeup1202/lofi) — see which metho
 ## Requirements
 
 - Node.js 18 or higher
-- A running Spring Boot app with [lofi-spring-boot-starter](https://github.com/closeup1202/lofi) configured
-- Actuator endpoints exposed (`lofi`, `lofiDiff`)
+- A running lofi target — either:
+  - A Spring Boot app with [lofi-spring-boot-starter](https://github.com/closeup1202/lofi) (actuator mode), or
+  - A running [lofi-backend](https://github.com/closeup1202/lofi) instance (backend mode)
 
 ---
 
@@ -25,7 +26,7 @@ npm install -g @closeup1202/lofi-cli
 Verify the installation:
 
 ```bash
-lofi --version  # 0.1.8
+lofi --version  # 0.2.0
 lofi --help
 ```
 
@@ -36,25 +37,28 @@ lofi --help
 ### `lofi diff` — compare performance between two deploys
 
 ```bash
-lofi diff <base>..<head> [--url <actuator-url>]
+lofi diff [<base>..<head>] [-U <url>]
 ```
 
 ```bash
-# Example
+# Pass commit range directly
 lofi diff a3f9c1..d82e04 --url http://localhost:8080
+
+# Or omit the range for an interactive selector
+lofi diff --url http://localhost:8080
 ```
 
 **Output:**
 
 ```
 Deploy Diff  a3f9c1 → d82e04
-──────────────────────────────────────────────────────────────────────────────
+──────────────────────────────────────────────────────────────────────────────────
   Method                                        Before      After       Delta
-──────────────────────────────────────────────────────────────────────────────
+──────────────────────────────────────────────────────────────────────────────────
   OrderService.createOrder()                   14.23ms  →  91.00ms   +76.77ms  ▲
   PaymentService.validate()                    22.10ms  →  58.40ms   +36.30ms  ▲
   UserService.findById()                        3.05ms  →   3.12ms    +0.07ms  —
-──────────────────────────────────────────────────────────────────────────────
+──────────────────────────────────────────────────────────────────────────────────
   2 regression(s) detected
 ```
 
@@ -66,12 +70,15 @@ Deploy Diff  a3f9c1 → d82e04
 ### `lofi snapshot` — view metrics for a specific deploy
 
 ```bash
-lofi snapshot <commitHash> [--url <actuator-url>]
+lofi snapshot [<commitHash>] [-U <url>]
 ```
 
 ```bash
-# Example
+# Pass commit hash directly
 lofi snapshot a3f9c1 --url http://localhost:8080
+
+# Or omit for an interactive selector
+lofi snapshot --url http://localhost:8080
 ```
 
 **Output:**
@@ -92,28 +99,44 @@ Snapshot  a3f9c1
 
 ## Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `-u, --url <url>` | `http://localhost:8080` | Actuator base URL of the target application |
-| `-V, --version` | | Print the CLI version |
-| `-h, --help` | | Display help for a command |
+| Option | Alias | Default | Description |
+|--------|-------|---------|-------------|
+| `--url <url>` | `-U` | `http://localhost:8080` | Target URL (actuator or lofi-backend) |
+| `--version` | `-V` | | Print the CLI version |
+| `--help` | `-h` | | Display help |
+
+---
+
+## Auto-Detection
+
+The CLI automatically detects whether the target is a `lofi-backend` instance or a Spring Boot actuator endpoint by probing `GET /lofi/commits` on startup. No extra flags are needed.
+
+```bash
+# Actuator mode (Spring Boot app on 8080)
+lofi diff a3f9c1..d82e04 --url http://localhost:8080
+
+# Backend mode (lofi-backend on 9292)
+lofi diff a3f9c1..d82e04 --url http://localhost:9292
+```
+
+Both work identically — the CLI adapts the API paths internally.
 
 ---
 
 ## Typical Workflow
 
+### Actuator mode
+
 ```
 Deploy v1 (commit: a3f9c1)
-  └─ GIT_COMMIT_HASH=a3f9c1 → metrics collected while app runs
+  └─ GIT_COMMIT_HASH=a3f9c1 → metrics collected via Spring AOP
 
 Deploy v2 (commit: d82e04)
-  └─ GIT_COMMIT_HASH=d82e04 → metrics collected while app runs
+  └─ GIT_COMMIT_HASH=d82e04 → metrics collected via Spring AOP
 
 After deploy:
-  lofi diff a3f9c1..d82e04 → regression report
+  lofi diff a3f9c1..d82e04 --url http://localhost:8080
 ```
-
-**Step by step:**
 
 **1. Deploy v1 with a commit hash**
 
@@ -125,45 +148,60 @@ export GIT_COMMIT_HASH=$(git rev-parse --short HEAD)
 
 **2. Send some traffic to your app**
 
-Let the app collect metrics by handling real or test requests.
-
-**3. Check the snapshot to confirm metrics are being recorded**
+**3. Check the snapshot to confirm metrics are recorded**
 
 ```bash
 lofi snapshot a3f9c1 --url http://localhost:8080
 ```
 
-**4. Deploy v2 and repeat**
-
-```bash
-export GIT_COMMIT_HASH=$(git rev-parse --short HEAD)
-./gradlew bootRun
-```
-
-**5. Compare the two deploys**
+**4. Deploy v2 and repeat, then compare**
 
 ```bash
 lofi diff a3f9c1..d82e04 --url http://localhost:8080
 ```
 
+### Backend mode (OTel pipeline)
+
+```
+Your App (OTel Agent)
+    │  OTLP
+    ▼
+lofi-otelcol → lofi-backend (:9292)
+    │
+    ▼  lofi-cli
+```
+
+```bash
+# Start the pipeline
+docker compose up
+
+# Run your app with the OTel agent
+OTEL_RESOURCE_ATTRIBUTES=deployment.commit.hash=$(git rev-parse --short HEAD) \
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 \
+java -javaagent:opentelemetry-javaagent.jar -jar your-app.jar
+
+# Compare deploys
+lofi diff a3f9c1..d82e04 --url http://localhost:9292
+```
+
 ---
 
-## Quick Start (from scratch)
+## Quick Start (actuator mode)
 
 **1. Add the library to your Spring Boot app**
 
 ```groovy
-implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.1.8'
+implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.2.0'
 ```
 
-**2. Expose actuator endpoints**
+**2. Expose the actuator endpoint**
 
 ```yaml
 management:
   endpoints:
     web:
       exposure:
-        include: lofi, lofiDiff
+        include: lofi
 ```
 
 **3. Set the commit hash and run**
@@ -201,7 +239,7 @@ lofi diff a3f9c1..d82e04 --url http://localhost:9090
 
 ```java
 http.authorizeHttpRequests(auth -> auth
-    .requestMatchers("/actuator/lofi/**", "/actuator/lofiDiff").permitAll()
+    .requestMatchers("/actuator/lofi/**").permitAll()
     .anyRequest().authenticated()
 );
 ```
@@ -215,11 +253,10 @@ http.authorizeHttpRequests(auth -> auth
 ### Connection failed
 
 ```
-Connection failed — connect ECONNREFUSED http://localhost:8080
-Check the actuator URL with the --url option
+Cannot connect to http://localhost:8080
 ```
 
-- Make sure your Spring Boot app is running
+- Make sure your app (or lofi-backend) is running and reachable
 - Verify the URL and port with `--url`
 - If using Docker or a remote server, replace `localhost` with the correct host
 
@@ -227,33 +264,30 @@ Check the actuator URL with the --url option
 
 ```
 No data found — no metrics recorded for commit: a3f9c1
-Verify the commit hash is correct and that metrics were collected for that deploy
 ```
 
-- Confirm `GIT_COMMIT_HASH` was set when the app started (check for `[LO-FI] Monitoring active — commit: a3f9c1` in the app logs)
-- Make sure the app received traffic after startup so metrics were collected
-- Check that `lofi.store-type` is set to `sqlite` (default) — `in-memory` metrics are lost on restart
+- **Actuator mode**: confirm `GIT_COMMIT_HASH` was set when the app started (look for `[LO-FI] Monitoring active` in the logs) and that the app received traffic after startup
+- **Backend mode**: confirm `deployment.commit.hash` was set as an OTel resource attribute and that `lofi-otelcol` is running and connected to `lofi-backend`
 
 ### 403 Forbidden
 
-The actuator endpoints are blocked by Spring Security. See the [Spring Security](#spring-security) section above.
-
-### Empty diff result
-
-- Check that both commit hashes exist in the database: run `lofi snapshot <hash>` for each
-- If both snapshots show 0 metrics, the app may not have received any instrumented requests during that deploy
+The actuator endpoints are blocked by Spring Security. See [Spring Security](#spring-security) above.
 
 ---
 
 ## How It Works
 
-`lofi diff` calls `GET /actuator/lofiDiff?base=<commit>&head=<commit>` and renders the response as a formatted table.
+**Actuator mode**
 
-`lofi snapshot` calls `GET /actuator/lofi/<commitHash>` and shows average latency per method.
+- `lofi diff` → `GET /actuator/lofi/diff?base=<commit>&head=<commit>`
+- `lofi snapshot` → `GET /actuator/lofi/<commitHash>`
 
-Latency values are in **milliseconds** (e.g. `14.23ms`). Internally, lofi measures in nanoseconds for precision and converts on the way out.
+**Backend mode**
 
-Both commands require the target app to be running and reachable at the specified URL.
+- `lofi diff` → `GET /lofi/diff?base=<commit>&head=<commit>`
+- `lofi snapshot` → `GET /lofi/snapshot/<commitHash>`
+
+Latency values are in **milliseconds** (e.g. `14.23ms`). Both actuator and backend convert from internal nanoseconds on the server side — the CLI receives ready-to-display values.
 
 ---
 

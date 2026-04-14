@@ -1,8 +1,6 @@
 package io.github.closeup1202.lofi.autoconfigure;
 
-import io.github.closeup1202.lofi.actuator.endpoint.LofiDiffEndpoint;
 import io.github.closeup1202.lofi.actuator.endpoint.LofiEndpoint;
-import io.github.closeup1202.lofi.actuator.service.DiffServiceImpl;
 import io.github.closeup1202.lofi.collector.context.DeployContext;
 import io.github.closeup1202.lofi.collector.interceptor.LofiInterceptor;
 import io.github.closeup1202.lofi.collector.persistence.InMemoryMetricStore;
@@ -11,6 +9,7 @@ import io.github.closeup1202.lofi.collector.persistence.MetricBuffer;
 import io.github.closeup1202.lofi.collector.persistence.SqliteMetricStore;
 import io.github.closeup1202.lofi.core.port.DiffService;
 import io.github.closeup1202.lofi.core.port.MetricStore;
+import io.github.closeup1202.lofi.core.service.DiffServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -24,11 +23,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
-// @EnableScheduling is required for MetricBuffer (SchedulingConfigurer) to perform periodic flushes.
-// Adding the lofi starter enables scheduling in the application context.
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.nio.file.Path;
+
+// @EnableScheduling is required for MetricBuffer (SchedulingConfigurer) to perform periodic flushes.
+// Adding the lofi starter enables scheduling in the application context.
 
 @AutoConfiguration(after = DataSourceAutoConfiguration.class)
 @EnableScheduling
@@ -106,14 +106,8 @@ public class LofiAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public LofiEndpoint lofiEndpoint(MetricStore metricStore) {
-        return new LofiEndpoint(metricStore);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    public LofiDiffEndpoint lofiDiffEndpoint(DiffService diffService) {
-        return new LofiDiffEndpoint(diffService);
+    public LofiEndpoint lofiEndpoint(MetricStore metricStore, DiffService diffService) {
+        return new LofiEndpoint(metricStore, diffService);
     }
 
     @Bean

@@ -7,7 +7,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: lofi, lofiDiff
+        include: lofi
 
 lofi:
   commit-hash: test-commit-001

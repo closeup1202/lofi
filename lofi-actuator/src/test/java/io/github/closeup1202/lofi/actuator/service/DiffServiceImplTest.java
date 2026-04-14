@@ -5,7 +5,8 @@ import io.github.closeup1202.lofi.core.domain.DiffResult;
 import io.github.closeup1202.lofi.core.domain.MethodDiff;
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import io.github.closeup1202.lofi.core.port.DiffService;
-import io.github.closeup1202.lofi.core.port.MetricStore;
+import io.github.closeup1202.lofi.core.port.ReadableMetricStore;
+import io.github.closeup1202.lofi.core.service.DiffServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,7 +24,7 @@ import static org.mockito.BDDMockito.given;
 class DiffServiceImplTest {
 
     @Mock
-    private MetricStore metricStore;
+    private ReadableMetricStore metricStore;
 
     private DiffService diffService;
 
@@ -45,23 +46,15 @@ class DiffServiceImplTest {
 
     @Test
     void shouldMarkRegressedWhenDeltaExceedsThreshold() {
-        // given
         long baseElapsedNs = 10L;
         long headElapsedNs = 100L;
 
-        DeploySnapshot baseDeploySnapshot = getDeploySnapshot(baseElapsedNs, baseCommit);
-        DeploySnapshot headDeploySnapshot = getDeploySnapshot(headElapsedNs, headCommit);
+        given(metricStore.snapshot(baseCommit)).willReturn(getDeploySnapshot(baseElapsedNs, baseCommit));
+        given(metricStore.snapshot(headCommit)).willReturn(getDeploySnapshot(headElapsedNs, headCommit));
 
-        given(metricStore.snapshot(baseCommit)).willReturn(baseDeploySnapshot);
-        given(metricStore.snapshot(headCommit)).willReturn(headDeploySnapshot);
-
-        // when
         DiffResult diffResult = diffService.diff(baseCommit, headCommit);
         List<MethodDiff> diffs = diffResult.diffs();
 
-        // then
-        assertThat(diffResult).isNotNull();
-        assertThat(diffs).isNotEmpty();
         assertThat(diffs).hasSize(1);
         assertThat(diffs.get(0).baseNs()).isEqualTo((double) baseElapsedNs);
         assertThat(diffs.get(0).headNs()).isEqualTo((double) headElapsedNs);
@@ -71,63 +64,33 @@ class DiffServiceImplTest {
 
     @Test
     void shouldNotMarkRegressedWhenDeltaIsWithinThreshold() {
-        // given
-        long baseElapsedNs = 100L;
-        long headElapsedNs = 119L;
+        given(metricStore.snapshot(baseCommit)).willReturn(getDeploySnapshot(100L, baseCommit));
+        given(metricStore.snapshot(headCommit)).willReturn(getDeploySnapshot(119L, headCommit));
 
-        DeploySnapshot baseDeploySnapshot = getDeploySnapshot(baseElapsedNs, baseCommit);
-        DeploySnapshot headDeploySnapshot = getDeploySnapshot(headElapsedNs, headCommit);
+        List<MethodDiff> diffs = diffService.diff(baseCommit, headCommit).diffs();
 
-        given(metricStore.snapshot(baseCommit)).willReturn(baseDeploySnapshot);
-        given(metricStore.snapshot(headCommit)).willReturn(headDeploySnapshot);
-
-        // when
-        DiffResult diffResult = diffService.diff(baseCommit, headCommit);
-        List<MethodDiff> diffs = diffResult.diffs();
-
-        // then
         assertThat(diffs.get(0).deltaNs()).isEqualTo(19.0);
         assertThat(diffs.get(0).regressed()).isFalse();
     }
 
     @Test
     void shouldNotMarkRegressedWhenDeltaIsWithinExactlyThreshold() {
-        // given
-        long baseElapsedNs = 100L;
-        long headElapsedNs = 120L;
+        given(metricStore.snapshot(baseCommit)).willReturn(getDeploySnapshot(100L, baseCommit));
+        given(metricStore.snapshot(headCommit)).willReturn(getDeploySnapshot(120L, headCommit));
 
-        DeploySnapshot baseDeploySnapshot = getDeploySnapshot(baseElapsedNs, baseCommit);
-        DeploySnapshot headDeploySnapshot = getDeploySnapshot(headElapsedNs, headCommit);
+        List<MethodDiff> diffs = diffService.diff(baseCommit, headCommit).diffs();
 
-        given(metricStore.snapshot(baseCommit)).willReturn(baseDeploySnapshot);
-        given(metricStore.snapshot(headCommit)).willReturn(headDeploySnapshot);
-
-        // when
-        DiffResult diffResult = diffService.diff(baseCommit, headCommit);
-        List<MethodDiff> diffs = diffResult.diffs();
-
-        // then
         assertThat(diffs.get(0).deltaNs()).isEqualTo(20.0);
         assertThat(diffs.get(0).regressed()).isFalse();
     }
 
     @Test
     void shouldMarkRegressedWhenBaseElapsedNsIsZeroAndHeadIsPositive() {
-        // given
-        long baseElapsedNs = 0L;
-        long headElapsedNs = 100L;
+        given(metricStore.snapshot(baseCommit)).willReturn(getDeploySnapshot(0L, baseCommit));
+        given(metricStore.snapshot(headCommit)).willReturn(getDeploySnapshot(100L, headCommit));
 
-        DeploySnapshot baseDeploySnapshot = getDeploySnapshot(baseElapsedNs, baseCommit);
-        DeploySnapshot headDeploySnapshot = getDeploySnapshot(headElapsedNs, headCommit);
+        List<MethodDiff> diffs = diffService.diff(baseCommit, headCommit).diffs();
 
-        given(metricStore.snapshot(baseCommit)).willReturn(baseDeploySnapshot);
-        given(metricStore.snapshot(headCommit)).willReturn(headDeploySnapshot);
-
-        // when
-        DiffResult diffResult = diffService.diff(baseCommit, headCommit);
-        List<MethodDiff> diffs = diffResult.diffs();
-
-        // then
         assertThat(diffs.get(0).deltaNs()).isEqualTo(100.0);
         assertThat(diffs.get(0).regressed()).isTrue();
     }

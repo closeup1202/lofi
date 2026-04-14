@@ -1,13 +1,13 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.3.0' apply false
+    id 'org.springframework.boot' version '3.5.12' apply false
     id 'io.spring.dependency-management' version '1.1.4' apply false
     id 'io.github.gradle-nexus.publish-plugin' version '2.0.0'
 }
 
 allprojects {
     group = 'io.github.closeup1202'
-    version = '0.1.8'
+    version = '0.2.0'
 }
 
 subprojects {
@@ -24,12 +24,13 @@ subprojects {
 
     dependencyManagement {
         imports {
-            mavenBom "org.springframework.boot:spring-boot-dependencies:3.3.0"
+            mavenBom "org.springframework.boot:spring-boot-dependencies:3.5.12"
         }
     }
 
     dependencies {
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 
     tasks.withType(JavaCompile).tap {

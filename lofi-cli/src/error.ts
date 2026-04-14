@@ -1,6 +1,6 @@
 export class LofiConnectionError extends Error {
     constructor(url: string) {
-        super(`Cannot connect to actuator: ${url}`)
+        super(`Cannot connect to ${url}`)
         this.name = 'LofiConnectionError'
     }
 }

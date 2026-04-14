@@ -1,0 +1,29 @@
+# Sample OpenTelemetry Collector configuration using the lofi exporter.
+# Pass this file to your collector binary:
+#   ./dist/lofi-otelcol --config collector-config.yaml
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 5s
+
+exporters:
+  lofi:
+    backend_url: http://localhost:9292
+
+service:
+  telemetry:
+    logs:
+      level: debug
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [lofi]

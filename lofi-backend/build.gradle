@@ -1,0 +1,15 @@
+plugins {
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+}
+
+dependencies {
+    api project(':lofi-core')
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.xerial:sqlite-jdbc:3.49.1.0'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}

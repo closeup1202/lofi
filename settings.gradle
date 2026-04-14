@@ -6,5 +6,8 @@ include(
     'lofi-actuator',
     'lofi-spring-boot-starter',
     'lofi-cli',
-    'lofi-integration-test'
+    'lofi-integration-test',
+    'lofi-backend',
+    'lofi-otel-exporter',
+    'lofi-sample'
 )
