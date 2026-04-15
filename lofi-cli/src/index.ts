@@ -10,8 +10,8 @@ const program = new Command()
 
 program
     .name('lofi')
-    .description('Method-level deploy diff for Spring Boot teams')
-    .version('0.2.3')
+    .description('Method-level latency regressions between deploys')
+    .version('0.2.4')
 
 function handleError(err: unknown): never {
     if (err instanceof LofiConnectionError) {

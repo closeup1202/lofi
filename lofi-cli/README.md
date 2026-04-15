@@ -1,6 +1,6 @@
 # lofi-cli
 
-Terminal CLI for [lofi](https://github.com/closeup1202/lofi) — see which methods slowed down between deploys.
+Terminal CLI for [lofi](https://github.com/closeup1202/lofi) — method-level latency regressions between deploys.
 
 ![npm](https://img.shields.io/npm/v/@closeup1202/lofi-cli?style=flat-square)
 ![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen?style=flat-square)
