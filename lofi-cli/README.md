@@ -47,6 +47,13 @@ lofi diff a3f9c1..d82e04 --url http://localhost:8080
 # Or omit the range for an interactive selector
 lofi diff --url http://localhost:8080
 
+# Use P95 or P99 instead of average
+lofi diff a3f9c1..d82e04 --stat p95
+lofi diff a3f9c1..d82e04 --stat p99
+
+# Skip methods with fewer than N calls in either deploy (suppress noisy low-traffic methods)
+lofi diff a3f9c1..d82e04 --min-calls 30
+
 # Output as JSON or markdown
 lofi diff a3f9c1..d82e04 --format json
 lofi diff a3f9c1..d82e04 --format markdown
@@ -56,18 +63,20 @@ lofi diff a3f9c1..d82e04 --format markdown
 
 ```
 Deploy Diff  a3f9c1 → d82e04
-──────────────────────────────────────────────────────────────────────────────────
-  Method                                        Before      After       Delta
-──────────────────────────────────────────────────────────────────────────────────
-  OrderService.createOrder()                   14.23ms  →  91.00ms   +76.77ms  ▲
-  PaymentService.validate()                    22.10ms  →  58.40ms   +36.30ms  ▲
-  UserService.findById()                        3.05ms  →   3.12ms    +0.07ms  —
-──────────────────────────────────────────────────────────────────────────────────
+Stat: avg
+────────────────────────────────────────────────────────────────────────────────────────────────
+  Method                                       Before      After       Delta        Calls
+────────────────────────────────────────────────────────────────────────────────────────────────
+  OrderService.createOrder()                  14.23ms  →  91.00ms   +76.77ms    45→716  ▲ 🔥
+  PaymentService.validate()                   22.10ms  →  58.40ms   +36.30ms   102→344  ▲
+  UserService.findById()                       3.05ms  →   3.12ms    +0.07ms   210→810  —
+────────────────────────────────────────────────────────────────────────────────────────────────
   2 regression(s) detected
 ```
 
 - Regressed methods are highlighted in **red**
 - A method is flagged as regressed when its latency increases by more than the configured threshold (default: 20%)
+- `Calls` column shows invocation counts for base → head deploy — use `--min-calls` to filter out low-traffic methods with unreliable averages
 
 ---
 
@@ -238,6 +247,8 @@ Snapshot  a3f9c1
 | `--url <url>` | `http://localhost:8080` | Target URL (actuator or lofi-backend) |
 | `--threshold-ms <ms>` | | Absolute latency threshold in ms (`check`, `diff`) |
 | `--threshold-rate <rate>` | | Relative threshold as a decimal — `0.2` = 20% (`check`, `diff`) |
+| `--stat <stat>` | `avg` | Latency stat to compare: `avg`, `p95`, `p99` (`check`, `diff`) |
+| `--min-calls <n>` | | Skip methods with fewer than n calls in either deploy (`check`, `diff`) |
 | `--format <format>` | `table` | Output format: `table`, `json`, `markdown` (`check`, `diff`) |
 | `--version` | | Print the CLI version |
 | `--help` | | Display help |
@@ -328,7 +339,7 @@ lofi diff a3f9c1..d82e04 --url http://localhost:9292
 **1. Add the library to your Spring Boot app**
 
 ```groovy
-implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.2.0'
+implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.2.1'
 ```
 
 **2. Expose the actuator endpoint**

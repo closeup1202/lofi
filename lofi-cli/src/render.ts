@@ -1,7 +1,7 @@
 import chalk from 'chalk'
-import {DeploySnapshot, DiffResult, MethodDiff, ThresholdOptions} from './client'
+import {DeploySnapshot, DiffResult, MethodDiff, StatType, ThresholdOptions} from './client'
 
-const DIFF_LINE = '─'.repeat(84)
+const DIFF_LINE = '─'.repeat(96)
 const SNAPSHOT_LINE = '─'.repeat(61)
 
 export type OutputFormat = 'table' | 'json' | 'markdown'
@@ -17,10 +17,33 @@ function shortSignature(signature: string): string {
     return `${className}.${methodPart}`
 }
 
-function exceedsThreshold(d: MethodDiff, options: ThresholdOptions): boolean {
-    if (d.deltaMs <= 0) return false
-    if (options.thresholdMs !== undefined) return d.deltaMs > options.thresholdMs
-    if (options.thresholdRate !== undefined && d.baseMs > 0) return d.deltaMs / d.baseMs > options.thresholdRate
+function getStatMs(d: MethodDiff, stat: StatType = 'avg'): {base: number; head: number; delta: number} {
+    switch (stat) {
+        case 'p95':
+            return {base: d.baseP95Ms, head: d.headP95Ms, delta: d.headP95Ms - d.baseP95Ms}
+        case 'p99':
+            return {base: d.baseP99Ms, head: d.headP99Ms, delta: d.headP99Ms - d.baseP99Ms}
+        default:
+            return {base: d.baseMs, head: d.headMs, delta: d.deltaMs}
+    }
+}
+
+function applyFilters(diffs: MethodDiff[], options: RenderOptions): MethodDiff[] {
+    if (options.minCalls === undefined) return diffs
+    return diffs.filter(d => {
+        // Only filter when both commits have data — absent methods (count=0) pass through
+        if (d.baseCount > 0 && d.headCount > 0) {
+            return Math.min(d.baseCount, d.headCount) >= options.minCalls!
+        }
+        return true
+    })
+}
+
+function exceedsThreshold(d: MethodDiff, options: RenderOptions): boolean {
+    const {base, delta} = getStatMs(d, options.stat)
+    if (delta <= 0) return false
+    if (options.thresholdMs !== undefined) return delta > options.thresholdMs
+    if (options.thresholdRate !== undefined && base > 0) return delta / base > options.thresholdRate
     return false
 }
 
@@ -33,7 +56,8 @@ function thresholdLabel(options: ThresholdOptions): string | null {
 // ─── renderCheck ─────────────────────────────────────────────────────────────
 
 function renderCheckTable(result: DiffResult, options: RenderOptions): void {
-    const exceeded = result.diffs.filter(d => exceedsThreshold(d, options))
+    const filtered = applyFilters(result.diffs, options)
+    const exceeded = filtered.filter(d => exceedsThreshold(d, options))
 
     if (exceeded.length === 0) {
         console.log(chalk.green.bold('✓ All within threshold'))
@@ -42,36 +66,47 @@ function renderCheckTable(result: DiffResult, options: RenderOptions): void {
 
     console.error(chalk.red.bold(`✗ ${exceeded.length} method(s) exceeded threshold`))
     for (const d of exceeded) {
-        const rate = d.baseMs > 0 ? ` (+${((d.deltaMs / d.baseMs) * 100).toFixed(1)}%)` : ''
-        console.error(chalk.red(`  ${shortSignature(d.signature)}  ${d.baseMs.toFixed(2)}ms → ${d.headMs.toFixed(2)}ms  (+${d.deltaMs.toFixed(2)}ms${rate})`))
+        const {base, head, delta} = getStatMs(d, options.stat)
+        const rate = base > 0 ? ` (+${((delta / base) * 100).toFixed(1)}%)` : ''
+        console.error(chalk.red(`  ${shortSignature(d.signature)}  ${base.toFixed(2)}ms → ${head.toFixed(2)}ms  (+${delta.toFixed(2)}ms${rate})`))
     }
     process.exit(1)
 }
 
 function renderCheckJson(result: DiffResult, options: RenderOptions): void {
-    const exceeded = result.diffs.filter(d => exceedsThreshold(d, options))
+    const filtered = applyFilters(result.diffs, options)
+    const exceeded = filtered.filter(d => exceedsThreshold(d, options))
+    const stat = options.stat ?? 'avg'
 
     const output: Record<string, unknown> = {
         passed: exceeded.length === 0,
-        exceeded: exceeded.map(d => ({
-            signature: d.signature,
-            baseMs: d.baseMs,
-            headMs: d.headMs,
-            deltaMs: d.deltaMs,
-            changeRate: d.baseMs > 0 ? +(d.deltaMs / d.baseMs).toFixed(4) : null
-        }))
+        stat,
+        exceeded: exceeded.map(d => {
+            const {base, head, delta} = getStatMs(d, stat)
+            return {
+                signature: d.signature,
+                baseMs: base,
+                headMs: head,
+                deltaMs: delta,
+                changeRate: base > 0 ? +(delta / base).toFixed(4) : null,
+                baseCount: d.baseCount,
+                headCount: d.headCount
+            }
+        })
     }
 
-    const label = thresholdLabel(options)
     if (options.thresholdMs !== undefined) output.threshold = {ms: options.thresholdMs}
     else if (options.thresholdRate !== undefined) output.threshold = {rate: options.thresholdRate}
+    if (options.minCalls !== undefined) output.minCalls = options.minCalls
 
     console.log(JSON.stringify(output, null, 2))
     process.exit(exceeded.length > 0 ? 1 : 0)
 }
 
 function renderCheckMarkdown(result: DiffResult, options: RenderOptions): void {
-    const exceeded = result.diffs.filter(d => exceedsThreshold(d, options))
+    const filtered = applyFilters(result.diffs, options)
+    const exceeded = filtered.filter(d => exceedsThreshold(d, options))
+    const stat = options.stat ?? 'avg'
     const lines: string[] = []
 
     if (exceeded.length === 0) {
@@ -79,19 +114,23 @@ function renderCheckMarkdown(result: DiffResult, options: RenderOptions): void {
     } else {
         lines.push(`## Latency Check: ✗ ${exceeded.length} method(s) exceeded threshold`)
         lines.push('')
-        lines.push('| Method | Before | After | Delta | Change |')
-        lines.push('|--------|--------|-------|-------|--------|')
+        lines.push(`| Method | Before (${stat}) | After (${stat}) | Delta | Change | Calls |`)
+        lines.push('|--------|--------|-------|-------|--------|-------|')
         for (const d of exceeded) {
+            const {base, head, delta} = getStatMs(d, stat)
             const sig = shortSignature(d.signature)
-            const change = d.baseMs > 0 ? `+${((d.deltaMs / d.baseMs) * 100).toFixed(1)}%` : '—'
-            lines.push(`| ${sig} | ${d.baseMs.toFixed(2)}ms | ${d.headMs.toFixed(2)}ms | +${d.deltaMs.toFixed(2)}ms | ${change} |`)
+            const change = base > 0 ? `+${((delta / base) * 100).toFixed(1)}%` : '—'
+            lines.push(`| ${sig} | ${base.toFixed(2)}ms | ${head.toFixed(2)}ms | +${delta.toFixed(2)}ms | ${change} | ${d.baseCount}→${d.headCount} |`)
         }
     }
 
     const label = thresholdLabel(options)
     if (label) {
         lines.push('')
-        lines.push(`> Threshold: ${label}`)
+        lines.push(`> Threshold: ${label}  ·  Stat: ${stat}`)
+    }
+    if (options.minCalls !== undefined) {
+        lines.push(`> Min calls: ${options.minCalls}`)
     }
 
     console.log(lines.join('\n'))
@@ -109,6 +148,9 @@ export function renderCheck(result: DiffResult, options: RenderOptions): void {
 // ─── renderDiff ──────────────────────────────────────────────────────────────
 
 function renderDiffTable(result: DiffResult, options: RenderOptions): boolean | null {
+    const stat = options.stat ?? 'avg'
+    const filtered = applyFilters(result.diffs, options)
+
     console.log()
     console.log(chalk.bold('Deploy Diff') + '  ' +
         chalk.gray(result.baseCommit) + ' → ' +
@@ -116,42 +158,54 @@ function renderDiffTable(result: DiffResult, options: RenderOptions): boolean | 
     )
 
     const label = thresholdLabel(options)
-    if (label) console.log(chalk.gray(`Threshold: ${label}`))
+    const statLabel = stat !== 'avg' ? stat.toUpperCase() : 'avg'
+    console.log(chalk.gray(`Stat: ${statLabel}`) + (label ? chalk.gray(`  Threshold: ${label}`) : ''))
+    if (options.minCalls !== undefined) console.log(chalk.gray(`Min calls: ${options.minCalls}`))
 
     console.log(chalk.gray(DIFF_LINE))
     console.log(
-        chalk.gray('  Method'.padEnd(47)) +
-        chalk.gray('Before'.padStart(9)) +
+        chalk.gray('  Method'.padEnd(44)) +
+        chalk.gray('Before'.padStart(10)) +
         chalk.gray('     ') +
-        chalk.gray('After'.padStart(9)) +
+        chalk.gray('After'.padStart(10)) +
         chalk.gray('  ') +
-        chalk.gray('Delta'.padStart(10))
+        chalk.gray('Delta'.padStart(10)) +
+        chalk.gray('  ') +
+        chalk.gray('Calls'.padStart(11))
     )
     console.log(chalk.gray(DIFF_LINE))
 
-    const sortedDiffs = [...result.diffs].sort((a, b) => b.deltaMs - a.deltaMs)
+    const sortedDiffs = [...filtered].sort((a, b) => {
+        const aS = getStatMs(a, stat)
+        const bS = getStatMs(b, stat)
+        return bS.delta - aS.delta
+    })
 
     for (const d of sortedDiffs) {
-        const signature = shortSignature(d.signature).padEnd(44)
-        const base = `${d.baseMs.toFixed(2)}ms`.padStart(9)
-        const head = `${d.headMs.toFixed(2)}ms`.padStart(9)
-        const delta = `${d.deltaMs > 0 ? '+' : ''}${d.deltaMs.toFixed(2)}ms`.padStart(10)
-        const arrow = d.deltaMs > 0 ? ' ▲' : ' —'
+        const {base, head, delta} = getStatMs(d, stat)
+        const signature = shortSignature(d.signature).padEnd(41)
+        const baseStr = `${base.toFixed(2)}ms`.padStart(10)
+        const headStr = `${head.toFixed(2)}ms`.padStart(10)
+        const deltaStr = `${delta > 0 ? '+' : ''}${delta.toFixed(2)}ms`.padStart(10)
+        const callsStr = (d.baseCount > 0 || d.headCount > 0)
+            ? `${d.baseCount}→${d.headCount}`.padStart(11)
+            : ''.padStart(11)
+        const arrow = delta > 0 ? ' ▲' : ' —'
         const exceeded = exceedsThreshold(d, options)
 
         if (exceeded) {
-            console.log(chalk.red.bold(`  ${signature} ${base}  →  ${head}  ${delta}${arrow} 🔥`))
+            console.log(chalk.red.bold(`  ${signature} ${baseStr}  →  ${headStr}  ${deltaStr}  ${callsStr}${arrow} 🔥`))
         } else if (d.regressed) {
-            console.log(chalk.red(`  ${signature} ${base}  →  ${head}  ${delta}${arrow}`))
+            console.log(chalk.red(`  ${signature} ${baseStr}  →  ${headStr}  ${deltaStr}  ${callsStr}${arrow}`))
         } else {
-            console.log(chalk.gray(`  ${signature} ${base}  →  ${head}  ${delta}${arrow}`))
+            console.log(chalk.gray(`  ${signature} ${baseStr}  →  ${headStr}  ${deltaStr}  ${callsStr}${arrow}`))
         }
     }
 
     console.log(chalk.gray(DIFF_LINE))
 
-    const regressions = result.diffs.filter(d => d.regressed)
-    const exceededList = result.diffs.filter(d => exceedsThreshold(d, options))
+    const regressions = filtered.filter(d => d.regressed)
+    const exceededList = filtered.filter(d => exceedsThreshold(d, options))
     const hasThreshold = label !== null
 
     if (regressions.length > 0) {
@@ -173,42 +227,62 @@ function renderDiffTable(result: DiffResult, options: RenderOptions): boolean | 
 }
 
 function renderDiffJson(result: DiffResult, options: RenderOptions): boolean | null {
-    const exceededList = result.diffs.filter(d => exceedsThreshold(d, options))
+    const stat = options.stat ?? 'avg'
+    const filtered = applyFilters(result.diffs, options)
+    const exceededList = filtered.filter(d => exceedsThreshold(d, options))
     const hasThreshold = thresholdLabel(options) !== null
 
     const output: Record<string, unknown> = {
         baseCommit: result.baseCommit,
         headCommit: result.headCommit,
-        regressions: result.diffs.filter(d => d.regressed).length,
-        diffs: result.diffs.map(d => ({
-            signature: d.signature,
-            baseMs: d.baseMs,
-            headMs: d.headMs,
-            deltaMs: d.deltaMs,
-            regressed: d.regressed
-        }))
+        stat,
+        regressions: filtered.filter(d => d.regressed).length,
+        diffs: filtered.map(d => {
+            const {base, head, delta} = getStatMs(d, stat)
+            return {
+                signature: d.signature,
+                baseMs: base,
+                headMs: head,
+                deltaMs: delta,
+                regressed: d.regressed,
+                baseCount: d.baseCount,
+                headCount: d.headCount
+            }
+        })
     }
 
     if (hasThreshold) {
         if (options.thresholdMs !== undefined) output.threshold = {ms: options.thresholdMs}
         else output.threshold = {rate: options.thresholdRate}
-        output.exceeded = exceededList.map(d => ({
-            signature: d.signature,
-            baseMs: d.baseMs,
-            headMs: d.headMs,
-            deltaMs: d.deltaMs,
-            changeRate: d.baseMs > 0 ? +(d.deltaMs / d.baseMs).toFixed(4) : null
-        }))
+        output.exceeded = exceededList.map(d => {
+            const {base, head, delta} = getStatMs(d, stat)
+            return {
+                signature: d.signature,
+                baseMs: base,
+                headMs: head,
+                deltaMs: delta,
+                changeRate: base > 0 ? +(delta / base).toFixed(4) : null,
+                baseCount: d.baseCount,
+                headCount: d.headCount
+            }
+        })
     }
+    if (options.minCalls !== undefined) output.minCalls = options.minCalls
 
     console.log(JSON.stringify(output, null, 2))
     return hasThreshold ? exceededList.length > 0 : null
 }
 
 function renderDiffMarkdown(result: DiffResult, options: RenderOptions): boolean | null {
-    const sortedDiffs = [...result.diffs].sort((a, b) => b.deltaMs - a.deltaMs)
-    const exceededList = result.diffs.filter(d => exceedsThreshold(d, options))
-    const regressions = result.diffs.filter(d => d.regressed)
+    const stat = options.stat ?? 'avg'
+    const filtered = applyFilters(result.diffs, options)
+    const sortedDiffs = [...filtered].sort((a, b) => {
+        const aS = getStatMs(a, stat)
+        const bS = getStatMs(b, stat)
+        return bS.delta - aS.delta
+    })
+    const exceededList = filtered.filter(d => exceedsThreshold(d, options))
+    const regressions = filtered.filter(d => d.regressed)
     const label = thresholdLabel(options)
     const hasThreshold = label !== null
     const lines: string[] = []
@@ -216,19 +290,22 @@ function renderDiffMarkdown(result: DiffResult, options: RenderOptions): boolean
     lines.push(`## Deploy Diff: \`${result.baseCommit}\` → \`${result.headCommit}\``)
     lines.push('')
 
-    if (label) {
-        lines.push(`> Threshold: ${label}`)
-        lines.push('')
-    }
+    const meta: string[] = [`Stat: ${stat}`]
+    if (label) meta.push(`Threshold: ${label}`)
+    if (options.minCalls !== undefined) meta.push(`Min calls: ${options.minCalls}`)
+    lines.push(`> ${meta.join('  ·  ')}`)
+    lines.push('')
 
-    lines.push('| Method | Before | After | Delta |')
-    lines.push('|--------|--------|-------|-------|')
+    lines.push(`| Method | Before (${stat}) | After (${stat}) | Delta | Calls |`)
+    lines.push('|--------|--------|-------|-------|-------|')
 
     for (const d of sortedDiffs) {
+        const {base, head, delta} = getStatMs(d, stat)
         const sig = shortSignature(d.signature)
-        const delta = `${d.deltaMs > 0 ? '+' : ''}${d.deltaMs.toFixed(2)}ms`
+        const deltaStr = `${delta > 0 ? '+' : ''}${delta.toFixed(2)}ms`
         const flag = exceedsThreshold(d, options) ? ' 🔥' : d.regressed ? ' ▲' : ''
-        lines.push(`| ${sig} | ${d.baseMs.toFixed(2)}ms | ${d.headMs.toFixed(2)}ms | ${delta}${flag} |`)
+        const calls = `${d.baseCount}→${d.headCount}`
+        lines.push(`| ${sig} | ${base.toFixed(2)}ms | ${head.toFixed(2)}ms | ${deltaStr}${flag} | ${calls} |`)
     }
 
     lines.push('')

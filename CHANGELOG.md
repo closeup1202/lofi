@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.1] - 2026-04-15
+
+### Added
+- **P95 / P99 latency percentiles in diff response** — `MethodDiffView` now includes `baseP95Ms`, `headP95Ms`, `baseP99Ms`, `headP99Ms` alongside the existing average fields, giving consumers richer latency data without additional API calls
+- **Call counts in diff response** — `MethodDiffView` now includes `baseCount` and `headCount` (invocation count per deploy), enabling clients to assess statistical confidence of each latency comparison
+- **`MethodStats` domain record** — encapsulates `avgNs`, `p95Ns`, `p99Ns`, and `count` per method; computed by `DeploySnapshot.statsByMethod()` in a single sorted pass
+
+### Changed
+- `DeploySnapshot.averageByMethod()` replaced by `statsByMethod()` — returns `Map<String, MethodStats>` with full percentile stats; `DiffServiceImpl` now uses this for all diff calculations
+- `MethodDiff` record updated with six new fields: `baseP95Ns`, `headP95Ns`, `baseP99Ns`, `headP99Ns`, `baseCount`, `headCount`
+
+### CLI (0.2.6)
+- **`--stat avg|p95|p99`** option added to `lofi diff` and `lofi check` — selects which latency stat to display and compare against thresholds (default: `avg`)
+- **`--min-calls <n>`** option added to `lofi diff` and `lofi check` — suppresses methods where both deploys have fewer than n invocations, filtering out statistically unreliable results; new or removed methods (present in only one deploy) are always shown
+- **`Calls` column** added to `lofi diff` table output — shows `baseCount→headCount` per method so users can judge data reliability at a glance
+- **No-threshold warning in `lofi check`** — running `lofi check` without `--threshold-ms` or `--threshold-rate` now prints a usage guide and exits 0 instead of silently passing all methods
+- **Timezone abbreviation in commit selector** — timestamps now include `timeZoneName: 'short'` (e.g. `KST`, `UTC`, `PDT`) so the timezone is always visible
+
+---
+
 ## [0.2.0] - 2026-04-14
 
 ### Added
@@ -184,6 +204,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date       | Description                                      |
 |---------|------------|--------------------------------------------------|
+| 0.2.1   | 2026-04-15 | P95/P99 percentiles, call counts in diff, CLI --stat / --min-calls |
 | 0.2.0   | 2026-04-14 | lofi-backend, lofi-otelcol, OTel pipeline, Docker, actuator endpoint consolidation, CVE fix |
 | 0.1.8   | 2026-04-14 | Commit list endpoint, interactive CLI commit selection, schema migration |
 | 0.1.7   | 2026-04-14 | Startup log, parameter validation, debug logging, docs fixes |
@@ -291,7 +312,8 @@ When contributing, please update this changelog:
 
 ---
 
-[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/closeup1202/lofi/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/closeup1202/lofi/compare/v0.1.8...v0.2.0
 [0.1.8]: https://github.com/closeup1202/lofi/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/closeup1202/lofi/compare/v0.1.6...v0.1.7

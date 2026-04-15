@@ -91,7 +91,8 @@ class LofiControllerTest {
     void diff_shouldConvertNsToMs() throws Exception {
         String base = "a3f9c1";
         String head = "d82e04";
-        MethodDiff methodDiff = new MethodDiff("TestClass.testMethod", 1_000_000.0, 3_000_000.0, 2_000_000.0, true);
+        MethodDiff methodDiff = new MethodDiff("TestClass.testMethod", 1_000_000.0, 3_000_000.0, 2_000_000.0, true,
+                950_000.0, 2_900_000.0, 990_000.0, 2_990_000.0, 10, 10);
         given(queryService.diff(base, head)).willReturn(new DiffResult(base, head, List.of(methodDiff)));
 
         mockMvc.perform(get("/lofi/diff").param("base", base).param("head", head))

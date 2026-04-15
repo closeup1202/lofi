@@ -3,6 +3,7 @@ package io.github.closeup1202.lofi.core.service;
 import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.DiffResult;
 import io.github.closeup1202.lofi.core.domain.MethodDiff;
+import io.github.closeup1202.lofi.core.domain.MethodStats;
 import io.github.closeup1202.lofi.core.port.DiffService;
 import io.github.closeup1202.lofi.core.port.ReadableMetricStore;
 
@@ -35,34 +36,48 @@ public class DiffServiceImpl implements DiffService {
         this.regressionThreshold = regressionThreshold;
     }
 
+    private static final MethodStats ABSENT = new MethodStats(0.0, 0.0, 0.0, 0);
+
     @Override
     public DiffResult diff(String baseCommit, String headCommit) {
         DeploySnapshot base = metricStore.snapshot(baseCommit);
         DeploySnapshot head = metricStore.snapshot(headCommit);
 
-        Map<String, Double> baseAvg = base.averageByMethod();
-        Map<String, Double> headAvg = head.averageByMethod();
+        Map<String, MethodStats> baseStats = base.statsByMethod();
+        Map<String, MethodStats> headStats = head.statsByMethod();
 
         List<MethodDiff> diffs = new ArrayList<>();
 
-        headAvg.forEach((signature, headNs) -> {
-            boolean existsInBase = baseAvg.containsKey(signature);
-            double baseNs = existsInBase ? baseAvg.get(signature) : 0.0;
-            double deltaNs = headNs - baseNs;
+        headStats.forEach((signature, hs) -> {
+            boolean existsInBase = baseStats.containsKey(signature);
+            MethodStats bs = existsInBase ? baseStats.get(signature) : ABSENT;
+            double deltaNs = hs.avgNs() - bs.avgNs();
             boolean regressed;
             if (!existsInBase) {
                 regressed = false;
-            } else if (baseNs == 0.0) {
-                regressed = headNs > 0;
+            } else if (bs.avgNs() == 0.0) {
+                regressed = hs.avgNs() > 0;
             } else {
-                regressed = (deltaNs / baseNs) > regressionThreshold;
+                regressed = (deltaNs / bs.avgNs()) > regressionThreshold;
             }
-            diffs.add(new MethodDiff(signature, baseNs, headNs, deltaNs, regressed));
+            diffs.add(new MethodDiff(
+                    signature,
+                    bs.avgNs(), hs.avgNs(), deltaNs, regressed,
+                    bs.p95Ns(), hs.p95Ns(),
+                    bs.p99Ns(), hs.p99Ns(),
+                    bs.count(), hs.count()
+            ));
         });
 
-        baseAvg.forEach((signature, baseNs) -> {
-            if (!headAvg.containsKey(signature)) {
-                diffs.add(new MethodDiff(signature, baseNs, 0.0, -baseNs, false));
+        baseStats.forEach((signature, bs) -> {
+            if (!headStats.containsKey(signature)) {
+                diffs.add(new MethodDiff(
+                        signature,
+                        bs.avgNs(), 0.0, -bs.avgNs(), false,
+                        bs.p95Ns(), 0.0,
+                        bs.p99Ns(), 0.0,
+                        bs.count(), 0
+                ));
             }
         });
 

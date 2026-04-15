@@ -7,7 +7,13 @@ public record MethodDiffView(
         double baseMs,
         double headMs,
         double deltaMs,
-        boolean regressed
+        boolean regressed,
+        double baseP95Ms,
+        double headP95Ms,
+        double baseP99Ms,
+        double headP99Ms,
+        int baseCount,
+        int headCount
 ) {
     public static MethodDiffView from(MethodDiff diff) {
         return new MethodDiffView(
@@ -15,7 +21,13 @@ public record MethodDiffView(
                 diff.baseNs() / 1_000_000.0,
                 diff.headNs() / 1_000_000.0,
                 diff.deltaNs() / 1_000_000.0,
-                diff.regressed()
+                diff.regressed(),
+                diff.baseP95Ns() / 1_000_000.0,
+                diff.headP95Ns() / 1_000_000.0,
+                diff.baseP99Ns() / 1_000_000.0,
+                diff.headP99Ns() / 1_000_000.0,
+                diff.baseCount(),
+                diff.headCount()
         );
     }
 }

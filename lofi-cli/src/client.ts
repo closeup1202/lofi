@@ -17,6 +17,12 @@ export interface MethodDiff {
     headMs: number
     deltaMs: number
     regressed: boolean
+    baseP95Ms: number
+    headP95Ms: number
+    baseP99Ms: number
+    headP99Ms: number
+    baseCount: number
+    headCount: number
 }
 
 export interface DiffResult {
@@ -38,9 +44,13 @@ export interface DeploySnapshot {
     metrics: MethodMetric[]
 }
 
+export type StatType = 'avg' | 'p95' | 'p99'
+
 export interface ThresholdOptions {
     thresholdMs?: number
     thresholdRate?: number
+    stat?: StatType
+    minCalls?: number
 }
 
 type Mode = 'backend' | 'actuator'

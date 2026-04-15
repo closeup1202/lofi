@@ -20,15 +20,27 @@ public record DeploySnapshot(
         List<MethodMetric> metrics
 ) {
     /**
-     * Computes the average elapsed time per method signature across all recorded metrics.
+     * Computes avg, P95, P99, and call count per method signature.
      *
-     * @return a map from method signature to average latency in nanoseconds
+     * @return a map from method signature to {@link MethodStats}
      */
-    public Map<String, Double> averageByMethod() {
+    public Map<String, MethodStats> statsByMethod() {
         return metrics.stream()
-                .collect(Collectors.groupingBy(
-                        MethodMetric::signature,
-                        Collectors.averagingLong(MethodMetric::elapsedNs)
+                .collect(Collectors.groupingBy(MethodMetric::signature))
+                .entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> {
+                            List<Long> sorted = e.getValue().stream()
+                                    .map(MethodMetric::elapsedNs)
+                                    .sorted()
+                                    .toList();
+                            int n = sorted.size();
+                            double avg = sorted.stream().mapToLong(Long::longValue).average().orElse(0);
+                            double p95 = sorted.get(Math.max(0, (int) Math.ceil(0.95 * n) - 1));
+                            double p99 = sorted.get(Math.max(0, (int) Math.ceil(0.99 * n) - 1));
+                            return new MethodStats(avg, p95, p99, n);
+                        }
                 ));
     }
 }

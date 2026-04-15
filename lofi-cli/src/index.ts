@@ -2,7 +2,7 @@
 import {Command} from 'commander'
 import chalk from 'chalk'
 import {select} from '@inquirer/prompts'
-import {CommitSummary, LofiClient} from './client'
+import {CommitSummary, LofiClient, StatType} from './client'
 import {OutputFormat, renderCheck, renderDiff, renderSnapshot} from './render'
 import {LofiConnectionError, LofiNotFoundError, LofiUnexpectedError} from './error'
 
@@ -11,7 +11,7 @@ const program = new Command()
 program
     .name('lofi')
     .description('Method-level latency regressions between deploys')
-    .version('0.2.5')
+    .version('0.2.6')
 
 function handleError(err: unknown): never {
     if (err instanceof LofiConnectionError) {
@@ -47,6 +47,7 @@ async function pickCommit(commits: CommitSummary[], message: string): Promise<st
 }
 
 const VALID_FORMATS: OutputFormat[] = ['table', 'json', 'markdown']
+const VALID_STATS: StatType[] = ['avg', 'p95', 'p99']
 
 function parseFormat(value: string): OutputFormat {
     if (!VALID_FORMATS.includes(value as OutputFormat)) {
@@ -56,17 +57,29 @@ function parseFormat(value: string): OutputFormat {
     return value as OutputFormat
 }
 
+function parseStat(value: string): StatType {
+    if (!VALID_STATS.includes(value as StatType)) {
+        console.error(chalk.red(`Invalid stat: "${value}". Use avg, p95, or p99`))
+        process.exit(1)
+    }
+    return value as StatType
+}
+
 program
     .command('diff [range]')
     .description('Compare method latency between two deploys')
     .option('--url <url>', 'server base url', 'http://localhost:8080')
     .option('--threshold-ms <ms>', 'absolute latency threshold (ms)', parseFloat)
     .option('--threshold-rate <rate>', 'relative threshold (0.2 = 20%)', parseFloat)
+    .option('--stat <stat>', 'latency stat to compare: avg, p95, p99', parseStat, 'avg' as StatType)
+    .option('--min-calls <n>', 'skip methods with fewer than n calls in either deploy', parseInt)
     .option('--format <format>', 'output format: table, json, markdown', parseFormat, 'table' as OutputFormat)
     .action(async (range: string | undefined, options: {
         url: string
         thresholdMs?: number
         thresholdRate?: number
+        stat: StatType
+        minCalls?: number
         format: OutputFormat
     }) => {
         try {
@@ -99,6 +112,8 @@ program
             const exceeded = renderDiff(result, {
                 thresholdMs: options.thresholdMs,
                 thresholdRate: options.thresholdRate,
+                stat: options.stat,
+                minCalls: options.minCalls,
                 format: options.format
             })
 
@@ -136,11 +151,15 @@ program
     .option('--url <url>', 'server base url', 'http://localhost:8080')
     .option('--threshold-ms <ms>', 'absolute latency threshold (ms)', parseFloat)
     .option('--threshold-rate <rate>', 'relative threshold (0.2 = 20%)', parseFloat)
+    .option('--stat <stat>', 'latency stat to compare: avg, p95, p99', parseStat, 'avg' as StatType)
+    .option('--min-calls <n>', 'skip methods with fewer than n calls in either deploy', parseInt)
     .option('--format <format>', 'output format: table, json, markdown', parseFormat, 'table' as OutputFormat)
     .action(async (range: string | undefined, options: {
         url: string
         thresholdMs?: number
         thresholdRate?: number
+        stat: StatType
+        minCalls?: number
         format: OutputFormat
     }) => {
         try {
@@ -194,6 +213,8 @@ program
             renderCheck(result, {
                 thresholdMs: options.thresholdMs,
                 thresholdRate: options.thresholdRate,
+                stat: options.stat,
+                minCalls: options.minCalls,
                 format: options.format
             })
 
