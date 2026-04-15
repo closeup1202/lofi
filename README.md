@@ -284,7 +284,39 @@ lofi snapshot <commitHash> --url <url>
 lofi snapshot                         # interactive commit selector
 ```
 
-The `--url` / `-U` flag defaults to `http://localhost:8080`. The CLI auto-detects whether the target is a `lofi-backend` instance or a `lofi-actuator` endpoint — no extra configuration needed.
+### check — CI gate (fail if regression exceeds threshold)
+
+```bash
+lofi check <base>..<head> --threshold-ms <ms> --url <url>
+lofi check <base>..<head> --threshold-rate <rate> --url <url>
+```
+
+Exits with code `1` if any method exceeds the threshold — designed to fail a CI step automatically.
+
+`lofi check` requires both commits to be deployed with metrics collected — it is a staging → production gate, not a pre-deploy check. If no metrics are found for a commit, it prints a warning and exits with code `0` instead of failing.
+
+Use `--format json` to parse results programmatically, or `--format markdown` to post a report to a PR comment:
+
+```yaml
+# Fail the step on regression
+- name: Check latency regression
+  env:
+    BASE: ${{ github.event.pull_request.base.sha }}
+    HEAD: ${{ github.event.pull_request.head.sha }}
+  run: lofi check $BASE..$HEAD --threshold-ms 50 --url https://staging.myapp.com
+
+# Post a markdown report as a PR comment
+- name: Post regression report
+  env:
+    BASE: ${{ github.event.pull_request.base.sha }}
+    HEAD: ${{ github.event.pull_request.head.sha }}
+  run: |
+    lofi check $BASE..$HEAD --threshold-ms 50 --format markdown \
+      --url https://staging.myapp.com > report.md || true
+    gh pr comment ${{ github.event.pull_request.number }} --body-file report.md
+```
+
+The `--url` flag defaults to `http://localhost:8080`. The CLI auto-detects whether the target is a `lofi-backend` instance or a `lofi-actuator` endpoint — no extra configuration needed.
 
 ---
 

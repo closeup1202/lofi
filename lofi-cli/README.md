@@ -37,7 +37,7 @@ lofi --help
 ### `lofi diff` — compare performance between two deploys
 
 ```bash
-lofi diff [<base>..<head>] [-U <url>]
+lofi diff [<base>..<head>] [--url <url>]
 ```
 
 ```bash
@@ -46,6 +46,10 @@ lofi diff a3f9c1..d82e04 --url http://localhost:8080
 
 # Or omit the range for an interactive selector
 lofi diff --url http://localhost:8080
+
+# Output as JSON or markdown
+lofi diff a3f9c1..d82e04 --format json
+lofi diff a3f9c1..d82e04 --format markdown
 ```
 
 **Output:**
@@ -67,10 +71,140 @@ Deploy Diff  a3f9c1 → d82e04
 
 ---
 
+### `lofi check` — fail if latency regression exceeds threshold (CI mode)
+
+```bash
+lofi check <base>..<head> [--threshold-ms <ms>] [--threshold-rate <rate>] [--url <url>]
+```
+
+```bash
+lofi check a3f9c1..d82e04 --threshold-ms 50 --url http://staging.myapp.com
+lofi check a3f9c1..d82e04 --threshold-rate 0.2 --url http://staging.myapp.com
+```
+
+**Output (pass):**
+
+```
+✓ All within threshold
+```
+
+**Output (fail):**
+
+```
+✗ 2 method(s) exceeded threshold
+  OrderService.createOrder()  14.23ms → 91.00ms  (+76.77ms, +539.5%)
+  PaymentService.validate()   22.10ms → 58.40ms  (+36.30ms, +164.3%)
+```
+
+Exits with code `1` on failure — GitHub Actions (and most CI systems) treat this as a failed step automatically.
+
+Options `--threshold-ms` and `--threshold-rate` are mutually exclusive.
+
+#### Prerequisites
+
+`lofi check` requires **both commits to be already deployed with metrics collected**. It is not a pre-deploy gate — the intended pattern is a **staging → production gate**.
+
+```
+Deploy v1 to staging → generate traffic → metrics collected
+Deploy v2 to staging → generate traffic → metrics collected
+lofi check v1..v2    ← compare here
+Deploy to production
+```
+
+If no metrics are found for a commit, `lofi check` prints a warning and exits with code `0` instead of failing:
+
+```
+⚠ No data found for commit: d82e04 — skipping check
+```
+
+This means teams that are gradually adopting a staging environment can add `lofi check` to their pipeline without risk of breaking it.
+
+#### `--format` option
+
+Use `--format` to control output format:
+
+| Format | Description |
+|--------|-------------|
+| `table` | Default. Human-readable colored output |
+| `json` | Machine-readable. Useful for piping or parsing in CI |
+| `markdown` | GitHub-flavored markdown. Useful for posting to PR comments |
+
+**`--format json` output:**
+
+```json
+{
+  "passed": false,
+  "threshold": { "ms": 50 },
+  "exceeded": [
+    {
+      "signature": "com.example.OrderService.createOrder()",
+      "baseMs": 14.23,
+      "headMs": 91.00,
+      "deltaMs": 76.77,
+      "changeRate": 5.3954
+    }
+  ]
+}
+```
+
+**`--format markdown` output:**
+
+```markdown
+## Latency Check: ✗ 1 method(s) exceeded threshold
+
+| Method | Before | After | Delta | Change |
+|--------|--------|-------|-------|--------|
+| OrderService.createOrder() | 14.23ms | 91.00ms | +76.77ms | +539.5% |
+
+> Threshold: 50ms
+```
+
+#### GitHub Actions example
+
+```yaml
+- name: Check latency regression
+  env:
+    BASE: ${{ github.event.pull_request.base.sha }}
+    HEAD: ${{ github.event.pull_request.head.sha }}
+  run: lofi check $BASE..$HEAD --threshold-ms 50 --url https://staging.myapp.com
+```
+
+Post results as a PR comment using `--format markdown`:
+
+```yaml
+- name: Check latency regression
+  env:
+    BASE: ${{ github.event.pull_request.base.sha }}
+    HEAD: ${{ github.event.pull_request.head.sha }}
+  run: |
+    lofi check $BASE..$HEAD --threshold-ms 50 --format markdown \
+      --url https://staging.myapp.com > report.md || true
+    gh pr comment ${{ github.event.pull_request.number }} --body-file report.md
+
+- name: Fail on regression
+  env:
+    BASE: ${{ github.event.pull_request.base.sha }}
+    HEAD: ${{ github.event.pull_request.head.sha }}
+  run: lofi check $BASE..$HEAD --threshold-ms 50 --format json \
+    --url https://staging.myapp.com
+```
+
+For push events, use `github.event.before` and `github.sha` instead:
+
+```yaml
+- name: Check latency regression
+  env:
+    BASE: ${{ github.event.before }}
+    HEAD: ${{ github.sha }}
+  run: lofi check $BASE..$HEAD --threshold-ms 50 --url https://staging.myapp.com
+```
+
+---
+
 ### `lofi snapshot` — view metrics for a specific deploy
 
 ```bash
-lofi snapshot [<commitHash>] [-U <url>]
+lofi snapshot [<commitHash>] [--url <url>]
 ```
 
 ```bash
@@ -99,11 +233,14 @@ Snapshot  a3f9c1
 
 ## Options
 
-| Option | Alias | Default | Description |
-|--------|-------|---------|-------------|
-| `--url <url>` | `-U` | `http://localhost:8080` | Target URL (actuator or lofi-backend) |
-| `--version` | `-V` | | Print the CLI version |
-| `--help` | `-h` | | Display help |
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--url <url>` | `http://localhost:8080` | Target URL (actuator or lofi-backend) |
+| `--threshold-ms <ms>` | | Absolute latency threshold in ms (`check`, `diff`) |
+| `--threshold-rate <rate>` | | Relative threshold as a decimal — `0.2` = 20% (`check`, `diff`) |
+| `--format <format>` | `table` | Output format: `table`, `json`, `markdown` (`check`, `diff`) |
+| `--version` | | Print the CLI version |
+| `--help` | | Display help |
 
 ---
 

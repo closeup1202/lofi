@@ -1,21 +1,17 @@
 #!/usr/bin/env node
-import { Command } from 'commander'
+import {Command} from 'commander'
 import chalk from 'chalk'
-import { select } from '@inquirer/prompts'
-import { LofiClient, CommitSummary } from './client'
-import { renderDiff, renderSnapshot } from './render'
-import {
-    LofiConnectionError,
-    LofiNotFoundError,
-    LofiUnexpectedError
-} from './error'
+import {select} from '@inquirer/prompts'
+import {CommitSummary, LofiClient} from './client'
+import {OutputFormat, renderCheck, renderDiff, renderSnapshot} from './render'
+import {LofiConnectionError, LofiNotFoundError, LofiUnexpectedError} from './error'
 
 const program = new Command()
 
 program
     .name('lofi')
     .description('Method-level deploy diff for Spring Boot teams')
-    .version('0.2.0')
+    .version('0.2.1')
 
 function handleError(err: unknown): never {
     if (err instanceof LofiConnectionError) {
@@ -46,16 +42,39 @@ async function pickCommit(commits: CommitSummary[], message: string): Promise<st
     }
     return select({
         message,
-        choices: commits.map(c => ({ value: c.commitHash, name: formatCommitChoice(c) }))
+        choices: commits.map(c => ({value: c.commitHash, name: formatCommitChoice(c)}))
     })
+}
+
+const VALID_FORMATS: OutputFormat[] = ['table', 'json', 'markdown']
+
+function parseFormat(value: string): OutputFormat {
+    if (!VALID_FORMATS.includes(value as OutputFormat)) {
+        console.error(chalk.red(`Invalid format: "${value}". Use table, json, or markdown`))
+        process.exit(1)
+    }
+    return value as OutputFormat
 }
 
 program
     .command('diff [range]')
     .description('Compare method latency between two deploys')
-    .option('-U, --url <url>', 'server base url', 'http://localhost:8080')
-    .action(async (range: string | undefined, options: { url: string }) => {
+    .option('--url <url>', 'server base url', 'http://localhost:8080')
+    .option('--threshold-ms <ms>', 'absolute latency threshold (ms)', parseFloat)
+    .option('--threshold-rate <rate>', 'relative threshold (0.2 = 20%)', parseFloat)
+    .option('--format <format>', 'output format: table, json, markdown', parseFormat, 'table' as OutputFormat)
+    .action(async (range: string | undefined, options: {
+        url: string
+        thresholdMs?: number
+        thresholdRate?: number
+        format: OutputFormat
+    }) => {
         try {
+            if (options.thresholdMs !== undefined && options.thresholdRate !== undefined) {
+                console.error(chalk.red('Use either --threshold-ms or --threshold-rate'))
+                process.exit(1)
+            }
+
             const client = new LofiClient(options.url)
 
             let base: string
@@ -77,7 +96,15 @@ program
             }
 
             const result = await client.diff(base, head)
-            renderDiff(result)
+            const exceeded = renderDiff(result, {
+                thresholdMs: options.thresholdMs,
+                thresholdRate: options.thresholdRate,
+                format: options.format
+            })
+
+            if (exceeded === true) process.exit(1)
+            if (exceeded === false) process.exit(0)
+
         } catch (err) {
             handleError(err)
         }
@@ -86,7 +113,7 @@ program
 program
     .command('snapshot [commitHash]')
     .description('Show metrics for a specific deploy')
-    .option('-U, --url <url>', 'server base url', 'http://localhost:8080')
+    .option('--url <url>', 'server base url', 'http://localhost:8080')
     .action(async (commitHash: string | undefined, options: { url: string }) => {
         try {
             const client = new LofiClient(options.url)
@@ -103,4 +130,57 @@ program
         }
     })
 
-program.parseAsync(process.argv)
+program
+    .command('check <range>')
+    .description('Fail if latency regression exceeds threshold (CI mode)')
+    .option('--url <url>', 'server base url', 'http://localhost:8080')
+    .option('--threshold-ms <ms>', 'absolute latency threshold (ms)', parseFloat)
+    .option('--threshold-rate <rate>', 'relative threshold (0.2 = 20%)', parseFloat)
+    .option('--format <format>', 'output format: table, json, markdown', parseFormat, 'table' as OutputFormat)
+    .action(async (range: string, options: {
+        url: string
+        thresholdMs?: number
+        thresholdRate?: number
+        format: OutputFormat
+    }) => {
+        try {
+            if (options.thresholdMs !== undefined && options.thresholdRate !== undefined) {
+                console.error(chalk.red('Use either --threshold-ms or --threshold-rate'))
+                process.exit(1)
+            }
+
+            const parts = range.split('..')
+            if (!parts[0] || !parts[1]) {
+                console.error(chalk.red('\nInvalid format: lofi check <base>..<head>'))
+                console.error(chalk.gray('  Example: lofi check a3f9c1..d82e04'))
+                process.exit(1)
+            }
+
+            const client = new LofiClient(options.url)
+
+            let result
+            try {
+                result = await client.diff(parts[0], parts[1])
+            } catch (err) {
+                if (err instanceof LofiNotFoundError) {
+                    console.warn(chalk.yellow(`⚠ ${err.message} — skipping check`))
+                    process.exit(0)
+                }
+                throw err
+            }
+
+            renderCheck(result, {
+                thresholdMs: options.thresholdMs,
+                thresholdRate: options.thresholdRate,
+                format: options.format
+            })
+
+        } catch (err) {
+            handleError(err)
+        }
+    })
+
+program.parseAsync(process.argv).catch((err) => {
+    console.error(err)
+    process.exit(1)
+})

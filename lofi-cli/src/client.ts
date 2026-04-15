@@ -38,6 +38,11 @@ export interface DeploySnapshot {
     metrics: MethodMetric[]
 }
 
+export interface ThresholdOptions {
+    thresholdMs?: number
+    thresholdRate?: number
+}
+
 type Mode = 'backend' | 'actuator'
 
 export class LofiClient {

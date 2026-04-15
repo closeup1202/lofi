@@ -68,7 +68,7 @@ public class InMemoryMetricStore implements MetricStore {
     }
 
     @Override
-    public List<CommitSummary> listCommits() {
+    public synchronized List<CommitSummary> listCommits() {
         return commitOrder.stream()
                 .map(hash -> {
                     List<MethodMetric> metrics = List.copyOf(
@@ -85,7 +85,7 @@ public class InMemoryMetricStore implements MetricStore {
     }
 
     @Override
-    public DeploySnapshot snapshot(String commitHash) {
+    public synchronized DeploySnapshot snapshot(String commitHash) {
         List<MethodMetric> metrics = List.copyOf(
                 metricsByCommit.getOrDefault(commitHash, new CopyOnWriteArrayList<>())
         );

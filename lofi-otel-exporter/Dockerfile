@@ -7,7 +7,7 @@ COPY go.mod go.sum ./
 COPY config.go exporter.go factory.go ./
 COPY ocb-config.yaml ./
 
-RUN builder --config ocb-config.yaml --skip-strict-versioning
+RUN CGO_ENABLED=0 builder --config ocb-config.yaml --skip-strict-versioning
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
