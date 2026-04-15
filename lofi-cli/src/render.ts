@@ -247,7 +247,7 @@ function renderDiffJson(result: DiffResult, options: RenderOptions): boolean | n
         baseCommit: result.baseCommit,
         headCommit: result.headCommit,
         stat,
-        regressions: filtered.filter(d => isRegressed(d, stat, result.regressionThreshold)).length,
+        regressions: filtered.filter(d => isRegressed(d, stat, regressionThreshold)).length,
         diffs: filtered.map(d => {
             const {base, head, delta} = getStatMs(d, stat)
             return {
