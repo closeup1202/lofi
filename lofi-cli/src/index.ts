@@ -11,7 +11,7 @@ const program = new Command()
 program
     .name('lofi')
     .description('Method-level deploy diff for Spring Boot teams')
-    .version('0.2.1')
+    .version('0.2.2')
 
 function handleError(err: unknown): never {
     if (err instanceof LofiConnectionError) {
@@ -131,13 +131,13 @@ program
     })
 
 program
-    .command('check <range>')
+    .command('check [range]')
     .description('Fail if latency regression exceeds threshold (CI mode)')
     .option('--url <url>', 'server base url', 'http://localhost:8080')
     .option('--threshold-ms <ms>', 'absolute latency threshold (ms)', parseFloat)
     .option('--threshold-rate <rate>', 'relative threshold (0.2 = 20%)', parseFloat)
     .option('--format <format>', 'output format: table, json, markdown', parseFormat, 'table' as OutputFormat)
-    .action(async (range: string, options: {
+    .action(async (range: string | undefined, options: {
         url: string
         thresholdMs?: number
         thresholdRate?: number
@@ -149,18 +149,29 @@ program
                 process.exit(1)
             }
 
-            const parts = range.split('..')
-            if (!parts[0] || !parts[1]) {
-                console.error(chalk.red('\nInvalid format: lofi check <base>..<head>'))
-                console.error(chalk.gray('  Example: lofi check a3f9c1..d82e04'))
-                process.exit(1)
-            }
-
             const client = new LofiClient(options.url)
+
+            let base: string
+            let head: string
+
+            if (range) {
+                const parts = range.split('..')
+                if (!parts[0] || !parts[1]) {
+                    console.error(chalk.red('\nInvalid format: lofi check <base>..<head>'))
+                    console.error(chalk.gray('  Example: lofi check a3f9c1..d82e04'))
+                    process.exit(1)
+                }
+                base = parts[0]
+                head = parts[1]
+            } else {
+                const commits = await client.commits()
+                base = await pickCommit(commits, 'Select base commit (before):')
+                head = await pickCommit(commits, 'Select head commit (after):')
+            }
 
             let result
             try {
-                result = await client.diff(parts[0], parts[1])
+                result = await client.diff(base, head)
             } catch (err) {
                 if (err instanceof LofiNotFoundError) {
                     console.warn(chalk.yellow(`⚠ ${err.message} — skipping check`))
