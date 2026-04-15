@@ -26,7 +26,7 @@ npm install -g @closeup1202/lofi-cli
 Verify the installation:
 
 ```bash
-lofi --version  # 0.2.2
+lofi --version
 lofi --help
 ```
 

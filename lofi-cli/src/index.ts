@@ -11,7 +11,7 @@ const program = new Command()
 program
     .name('lofi')
     .description('Method-level deploy diff for Spring Boot teams')
-    .version('0.2.2')
+    .version('0.2.3')
 
 function handleError(err: unknown): never {
     if (err instanceof LofiConnectionError) {
@@ -30,7 +30,7 @@ function handleError(err: unknown): never {
 }
 
 function formatCommitChoice(commit: CommitSummary): string {
-    const date = new Date(commit.deployedAt).toLocaleString()
+    const date = new Date(commit.deployedAt).toLocaleString(undefined, {timeZoneName: 'short'})
     return `${commit.commitHash}  (${date}, ${commit.metricCount} metrics)`
 }
 
@@ -147,6 +147,17 @@ program
             if (options.thresholdMs !== undefined && options.thresholdRate !== undefined) {
                 console.error(chalk.red('Use either --threshold-ms or --threshold-rate'))
                 process.exit(1)
+            }
+
+            if (options.thresholdMs === undefined && options.thresholdRate === undefined) {
+                console.warn(chalk.yellow('\n⚠ No threshold set — lofi check has no effect without one.'))
+                console.warn(chalk.gray('  Specify a threshold to define a CI gate:'))
+                console.warn(chalk.gray('    --threshold-ms <ms>      absolute delta  (e.g. --threshold-ms 50)'))
+                console.warn(chalk.gray('    --threshold-rate <rate>  relative delta  (e.g. --threshold-rate 0.2)'))
+                console.warn(chalk.gray('\n  Example:'))
+                console.warn(chalk.gray('    lofi check a3f9c1..d82e04 --threshold-ms 50'))
+                console.warn(chalk.gray('    lofi check a3f9c1..d82e04 --threshold-rate 0.2\n'))
+                process.exit(0)
             }
 
             const client = new LofiClient(options.url)
