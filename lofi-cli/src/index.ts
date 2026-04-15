@@ -11,7 +11,7 @@ const program = new Command()
 program
     .name('lofi')
     .description('Method-level latency regressions between deploys')
-    .version('0.2.4')
+    .version('0.2.5')
 
 function handleError(err: unknown): never {
     if (err instanceof LofiConnectionError) {
