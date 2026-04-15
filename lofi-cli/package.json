@@ -1,6 +1,6 @@
 {
   "name": "@closeup1202/lofi-cli",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "CLI for lofi — Method-level latency regressions between deploys",
   "bin": {
     "lofi": "./dist/index.js"

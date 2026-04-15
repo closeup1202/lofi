@@ -11,7 +11,25 @@ const program = new Command()
 program
     .name('lofi')
     .description('Method-level latency regressions between deploys')
-    .version('0.2.6')
+    .version('0.2.7')
+    .addHelpText('after', `
+Common Options:
+  --url <url>                Target URL (default: http://localhost:8080)
+  --stat <avg|p95|p99>       Latency stat to compare: avg, p95, p99 (default: avg)
+  --threshold-ms <ms>        Absolute latency threshold in ms (diff, check)
+  --threshold-rate <rate>    Relative threshold — 0.2 = 20% (diff, check)
+  --min-calls <n>            Skip methods with fewer than n calls in either deploy (diff, check)
+  --format <table|json|md>   Output format (default: table)
+
+  --threshold-ms and --threshold-rate are mutually exclusive.
+
+Examples:
+  lofi diff a3f9c1..d82e04 --url http://localhost:8080
+  lofi diff a3f9c1..d82e04 --stat p95 --min-calls 30
+  lofi check a3f9c1..d82e04 --threshold-ms 50 --url https://staging.myapp.com
+  lofi snapshot a3f9c1 --url http://localhost:8080
+
+Run 'lofi <command> --help' for full option details.`)
 
 function handleError(err: unknown): never {
     if (err instanceof LofiConnectionError) {
