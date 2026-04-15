@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.3] - 2026-04-15
+
+### Changed
+- **Backend API paths unified with actuator structure** — `GET /lofi/commits` → `GET /lofi`, `GET /lofi/snapshot/{hash}` → `GET /lofi/{hash}`; paths now mirror the actuator prefix pattern, reducing asymmetry between modes
+
+### CLI (0.2.9)
+- Auto-detection probe updated to `GET /lofi` (was `GET /lofi/commits`)
+- Backend snapshot URL updated to `GET /lofi/{hash}` (was `GET /lofi/snapshot/{hash}`)
+- Backend commits URL updated to `GET /lofi` (was `GET /lofi/commits`)
+
+---
+
 ## [0.2.2] - 2026-04-15
 
 ### Changed

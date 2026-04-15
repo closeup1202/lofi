@@ -44,7 +44,7 @@ class LofiControllerTest {
                 new CommitSummary("a3f9c1", Instant.parse("2026-04-14T04:10:00Z"), 6)
         ));
 
-        mockMvc.perform(get("/lofi/commits"))
+        mockMvc.perform(get("/lofi"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].commitHash").value("a3f9c1"))
                 .andExpect(jsonPath("$[0].metricCount").value(6));
@@ -57,7 +57,7 @@ class LofiControllerTest {
                 List.of(new MethodMetric("TestClass", "testMethod", 2_000_000L, Instant.now())));
         given(queryService.snapshot(commitHash)).willReturn(snapshot);
 
-        mockMvc.perform(get("/lofi/snapshot/{commitHash}", commitHash))
+        mockMvc.perform(get("/lofi/{commitHash}", commitHash))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.commitHash").value(commitHash))
                 .andExpect(jsonPath("$.metrics[0].elapsedMs").value(2.0))
@@ -69,7 +69,7 @@ class LofiControllerTest {
         String commitHash = "unknown";
         given(queryService.snapshot(commitHash)).willThrow(new CommitNotFoundException(commitHash));
 
-        mockMvc.perform(get("/lofi/snapshot/{commitHash}", commitHash))
+        mockMvc.perform(get("/lofi/{commitHash}", commitHash))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.message").value("No metrics found for commit: " + commitHash));

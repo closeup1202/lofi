@@ -33,12 +33,12 @@ public class LofiController {
         commandService.ingest(request);
     }
 
-    @GetMapping("/commits")
+    @GetMapping
     public List<CommitSummary> commits() {
         return queryService.listCommits();
     }
 
-    @GetMapping("/snapshot/{commitHash}")
+    @GetMapping("/{commitHash}")
     public DeploySnapshotView snapshot(@PathVariable @NotBlank String commitHash) {
         return DeploySnapshotView.from(queryService.snapshot(commitHash));
     }

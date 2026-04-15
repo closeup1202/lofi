@@ -257,7 +257,7 @@ Snapshot  a3f9c1
 
 ## Auto-Detection
 
-The CLI automatically detects whether the target is a `lofi-backend` instance or a Spring Boot actuator endpoint by probing `GET /lofi/commits` on startup. No extra flags are needed.
+The CLI automatically detects whether the target is a `lofi-backend` instance or a Spring Boot actuator endpoint by probing `GET /lofi` on startup. No extra flags are needed.
 
 ```bash
 # Actuator mode (Spring Boot app on 8080)
@@ -339,7 +339,7 @@ lofi diff a3f9c1..d82e04 --url http://localhost:9292
 **1. Add the library to your Spring Boot app**
 
 ```groovy
-implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.2.2'
+implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.2.3'
 ```
 
 **2. Expose the actuator endpoint**
@@ -433,7 +433,7 @@ The actuator endpoints are blocked by Spring Security. See [Spring Security](#sp
 **Backend mode**
 
 - `lofi diff` → `GET /lofi/diff?base=<commit>&head=<commit>`
-- `lofi snapshot` → `GET /lofi/snapshot/<commitHash>`
+- `lofi snapshot` → `GET /lofi/<commitHash>`
 
 Latency values are in **milliseconds** (e.g. `14.23ms`). Both actuator and backend convert from internal nanoseconds on the server side — the CLI receives ready-to-display values.
 

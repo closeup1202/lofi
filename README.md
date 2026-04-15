@@ -65,7 +65,7 @@ The CLI detects the mode automatically from the `--url` target — no extra flag
 **Gradle**
 
 ```groovy
-implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.2.2'
+implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.2.3'
 ```
 
 **Maven**
@@ -74,7 +74,7 @@ implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.2.2'
 <dependency>
   <groupId>io.github.closeup1202</groupId>
   <artifactId>lofi-spring-boot-starter</artifactId>
-  <version>0.2.2</version>
+  <version>0.2.3</version>
 </dependency>
 ```
 
@@ -326,8 +326,8 @@ Both modes expose the same logical API. Paths differ by prefix.
 
 | Operation | Actuator | Backend |
 |---|---|---|
-| List commits | `GET /actuator/lofi` | `GET /lofi/commits` |
-| Snapshot | `GET /actuator/lofi/{hash}` | `GET /lofi/snapshot/{hash}` |
+| List commits | `GET /actuator/lofi` | `GET /lofi` |
+| Snapshot | `GET /actuator/lofi/{hash}` | `GET /lofi/{hash}` |
 | Diff | `GET /actuator/lofi/diff?base=X&head=Y` | `GET /lofi/diff?base=X&head=Y` |
 
 ### Snapshot response

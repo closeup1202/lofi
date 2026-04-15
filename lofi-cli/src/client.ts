@@ -67,7 +67,7 @@ export class LofiClient {
     private async resolveMode(): Promise<Mode> {
         if (this.mode) return this.mode
         try {
-            await axios.get(`${this.baseUrl}/lofi/commits`, { timeout: 3000 })
+            await axios.get(`${this.baseUrl}/lofi`, { timeout: 3000 })
             this.mode = 'backend'
         } catch (err) {
             if (axios.isAxiosError(err) && !err.response) {
@@ -81,7 +81,7 @@ export class LofiClient {
     async commits(): Promise<CommitSummary[]> {
         const mode = await this.resolveMode()
         const url = mode === 'backend'
-            ? `${this.baseUrl}/lofi/commits`
+            ? `${this.baseUrl}/lofi`
             : `${this.baseUrl}/actuator/lofi`
         return this.request(() => axios.get(url))
     }
@@ -97,7 +97,7 @@ export class LofiClient {
     async snapshot(commitHash: string): Promise<DeploySnapshot> {
         const mode = await this.resolveMode()
         const url = mode === 'backend'
-            ? `${this.baseUrl}/lofi/snapshot/${commitHash}`
+            ? `${this.baseUrl}/lofi/${commitHash}`
             : `${this.baseUrl}/actuator/lofi/${commitHash}`
         return this.request(() => axios.get(url), commitHash)
     }
