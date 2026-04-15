@@ -30,16 +30,16 @@ public class SqliteWritableMetricStore implements WritableMetricStore {
     private void evictOldCommits() {
         jdbcTemplate.update(
                 """
-                DELETE FROM method_metric WHERE commit_hash NOT IN (
-                    SELECT commit_hash FROM (
-                        SELECT DISTINCT commit_hash, MIN(recorded_at) AS first_seen
-                        FROM method_metric
-                        GROUP BY commit_hash
-                        ORDER BY first_seen DESC
-                        LIMIT ?
-                    )
-                )
-                """,
+                        DELETE FROM method_metric WHERE commit_hash NOT IN (
+                            SELECT commit_hash FROM (
+                                SELECT DISTINCT commit_hash, MIN(recorded_at) AS first_seen
+                                FROM method_metric
+                                GROUP BY commit_hash
+                                ORDER BY first_seen DESC
+                                LIMIT ?
+                            )
+                        )
+                        """,
                 retentionCommits
         );
     }

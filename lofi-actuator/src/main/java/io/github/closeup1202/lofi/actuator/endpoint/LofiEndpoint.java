@@ -21,7 +21,7 @@ import java.util.List;
  *   <li>{@code GET /actuator/lofi/{commitHash}}             — snapshot for a commit</li>
  *   <li>{@code GET /actuator/lofi/diff?base=X&head=Y}       — latency diff between two commits</li>
  * </ul>
- *
+ * <p>
  * Requires {@code lofi} to be included in {@code management.endpoints.web.exposure.include}.
  */
 @WebEndpoint(id = "lofi")
@@ -60,7 +60,7 @@ public class LofiEndpoint {
             if (!StringUtils.hasText(base) || !StringUtils.hasText(head)) {
                 throw new IllegalArgumentException(
                         "Both 'base' and 'head' query params are required. " +
-                        "Usage: /actuator/lofi/diff?base=<commitHash>&head=<commitHash>");
+                                "Usage: /actuator/lofi/diff?base=<commitHash>&head=<commitHash>");
             }
             return DiffResultView.from(diffService.diff(base, head));
         }

@@ -66,5 +66,6 @@ public record LofiProperties(
 
             @Min(value = 1, message = "must be at least 1")
             @DefaultValue("1000") int queueCapacity
-    ) {}
+    ) {
+    }
 }

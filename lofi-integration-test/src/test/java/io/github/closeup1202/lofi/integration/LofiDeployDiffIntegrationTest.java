@@ -6,8 +6,6 @@ import io.github.closeup1202.lofi.core.domain.CommitSummary;
 import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import io.github.closeup1202.lofi.core.port.MetricStore;
-
-import java.util.List;
 import io.github.closeup1202.lofi.integration.fixture.TestApplication;
 import io.github.closeup1202.lofi.integration.fixture.TestService;
 import org.junit.jupiter.api.*;
@@ -25,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
