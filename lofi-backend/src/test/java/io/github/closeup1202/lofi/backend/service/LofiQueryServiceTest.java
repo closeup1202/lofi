@@ -63,7 +63,7 @@ class LofiQueryServiceTest {
     void diff_shouldDelegateToDiffService() {
         String base = "a3f9c1";
         String head = "d82e04";
-        DiffResult expected = new DiffResult(base, head, List.of());
+        DiffResult expected = new DiffResult(base, head, List.of(), 0.2);
         given(diffService.diff(base, head)).willReturn(expected);
 
         DiffResult result = queryService.diff(base, head);

@@ -29,6 +29,7 @@ export interface DiffResult {
     baseCommit: string
     headCommit: string
     diffs: MethodDiff[]
+    regressionThreshold: number
 }
 
 export interface MethodMetric {

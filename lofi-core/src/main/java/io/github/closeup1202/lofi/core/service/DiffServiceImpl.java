@@ -81,6 +81,6 @@ public class DiffServiceImpl implements DiffService {
             }
         });
 
-        return new DiffResult(baseCommit, headCommit, diffs);
+        return new DiffResult(baseCommit, headCommit, diffs, regressionThreshold);
     }
 }

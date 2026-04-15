@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.2] - 2026-04-15
+
+### Changed
+- **`regressed` flag now reflects the selected stat** — when using `--stat p95` or `--stat p99`, regression coloring and count in `lofi diff` output are computed against the selected percentile using the server's configured `regressionThreshold`, not the server-side avg-based flag
+- **`DiffResult` / `DiffResultView`** now include `regressionThreshold` so the CLI can apply consistent regression logic client-side regardless of which stat is selected
+
+### Added
+- **lofi-backend retention policy** — `lofi.backend.retention-commits` (default `50`) automatically evicts the oldest commits after each ingest, keeping SQLite from growing unboundedly
+
+### CLI (0.2.8)
+- `lofi diff` regression coloring now consistent with `--stat` selection
+
+---
+
 ## [0.2.1] - 2026-04-15
 
 ### Added
@@ -204,6 +218,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date       | Description                                      |
 |---------|------------|--------------------------------------------------|
+| 0.2.2   | 2026-04-15 | regressed flag stat consistency, lofi-backend retention policy |
 | 0.2.1   | 2026-04-15 | P95/P99 percentiles, call counts in diff, CLI --stat / --min-calls |
 | 0.2.0   | 2026-04-14 | lofi-backend, lofi-otelcol, OTel pipeline, Docker, actuator endpoint consolidation, CVE fix |
 | 0.1.8   | 2026-04-14 | Commit list endpoint, interactive CLI commit selection, schema migration |
@@ -312,7 +327,8 @@ When contributing, please update this changelog:
 
 ---
 
-[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/closeup1202/lofi/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/closeup1202/lofi/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/closeup1202/lofi/compare/v0.1.8...v0.2.0
 [0.1.8]: https://github.com/closeup1202/lofi/compare/v0.1.7...v0.1.8

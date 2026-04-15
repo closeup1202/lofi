@@ -339,7 +339,7 @@ lofi diff a3f9c1..d82e04 --url http://localhost:9292
 **1. Add the library to your Spring Boot app**
 
 ```groovy
-implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.2.1'
+implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.2.2'
 ```
 
 **2. Expose the actuator endpoint**

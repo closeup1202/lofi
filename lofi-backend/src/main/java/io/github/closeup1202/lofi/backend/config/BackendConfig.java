@@ -26,6 +26,9 @@ public class BackendConfig {
     @Value("${lofi.backend.regression-threshold}")
     private double regressionThreshold;
 
+    @Value("${lofi.backend.retention-commits}")
+    private int retentionCommits;
+
     @Bean
     public DataSource lofiDataSource() {
         DriverManagerDataSource ds = new DriverManagerDataSource();
@@ -53,7 +56,7 @@ public class BackendConfig {
     @Bean
     @DependsOn("backendDatabaseInitializer")
     public WritableMetricStore writableMetricStore(JdbcTemplate lofiJdbcTemplate) {
-        return new SqliteWritableMetricStore(lofiJdbcTemplate);
+        return new SqliteWritableMetricStore(lofiJdbcTemplate, retentionCommits);
     }
 
     @Bean

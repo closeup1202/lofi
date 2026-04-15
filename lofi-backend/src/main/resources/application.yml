@@ -10,3 +10,4 @@ lofi:
   backend:
     db-path: ${user.home}/.lofi/metrics.db
     regression-threshold: 0.2
+    retention-commits: 50

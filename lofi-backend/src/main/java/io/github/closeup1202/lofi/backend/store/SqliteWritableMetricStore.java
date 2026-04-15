@@ -9,9 +9,11 @@ import java.util.List;
 public class SqliteWritableMetricStore implements WritableMetricStore {
 
     private final JdbcTemplate jdbcTemplate;
+    private final int retentionCommits;
 
-    public SqliteWritableMetricStore(JdbcTemplate jdbcTemplate) {
+    public SqliteWritableMetricStore(JdbcTemplate jdbcTemplate, int retentionCommits) {
         this.jdbcTemplate = jdbcTemplate;
+        this.retentionCommits = retentionCommits;
     }
 
     @Override
@@ -21,6 +23,24 @@ public class SqliteWritableMetricStore implements WritableMetricStore {
                 metrics.stream()
                         .map(m -> new Object[]{commitHash, m.className(), m.methodName(), m.elapsedNs(), m.recordedAt().toString()})
                         .toList()
+        );
+        evictOldCommits();
+    }
+
+    private void evictOldCommits() {
+        jdbcTemplate.update(
+                """
+                DELETE FROM method_metric WHERE commit_hash NOT IN (
+                    SELECT commit_hash FROM (
+                        SELECT DISTINCT commit_hash, MIN(recorded_at) AS first_seen
+                        FROM method_metric
+                        GROUP BY commit_hash
+                        ORDER BY first_seen DESC
+                        LIMIT ?
+                    )
+                )
+                """,
+                retentionCommits
         );
     }
 

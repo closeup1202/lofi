@@ -39,6 +39,13 @@ function applyFilters(diffs: MethodDiff[], options: RenderOptions): MethodDiff[]
     })
 }
 
+function isRegressed(d: MethodDiff, stat: StatType, regressionThreshold: number): boolean {
+    const {base, delta} = getStatMs(d, stat)
+    if (delta <= 0) return false
+    if (base === 0) return delta > 0
+    return (delta / base) > regressionThreshold
+}
+
 function exceedsThreshold(d: MethodDiff, options: RenderOptions): boolean {
     const {base, delta} = getStatMs(d, options.stat)
     if (delta <= 0) return false
@@ -150,6 +157,7 @@ export function renderCheck(result: DiffResult, options: RenderOptions): void {
 function renderDiffTable(result: DiffResult, options: RenderOptions): boolean | null {
     const stat = options.stat ?? 'avg'
     const filtered = applyFilters(result.diffs, options)
+    const {regressionThreshold} = result
 
     console.log()
     console.log(chalk.bold('Deploy Diff') + '  ' +
@@ -193,9 +201,11 @@ function renderDiffTable(result: DiffResult, options: RenderOptions): boolean | 
         const arrow = delta > 0 ? ' ▲' : ' —'
         const exceeded = exceedsThreshold(d, options)
 
+        const regressed = isRegressed(d, stat, regressionThreshold)
+
         if (exceeded) {
             console.log(chalk.red.bold(`  ${signature} ${baseStr}  →  ${headStr}  ${deltaStr}  ${callsStr}${arrow} 🔥`))
-        } else if (d.regressed) {
+        } else if (regressed) {
             console.log(chalk.red(`  ${signature} ${baseStr}  →  ${headStr}  ${deltaStr}  ${callsStr}${arrow}`))
         } else {
             console.log(chalk.gray(`  ${signature} ${baseStr}  →  ${headStr}  ${deltaStr}  ${callsStr}${arrow}`))
@@ -204,7 +214,7 @@ function renderDiffTable(result: DiffResult, options: RenderOptions): boolean | 
 
     console.log(chalk.gray(DIFF_LINE))
 
-    const regressions = filtered.filter(d => d.regressed)
+    const regressions = filtered.filter(d => isRegressed(d, stat, regressionThreshold))
     const exceededList = filtered.filter(d => exceedsThreshold(d, options))
     const hasThreshold = label !== null
 
@@ -229,6 +239,7 @@ function renderDiffTable(result: DiffResult, options: RenderOptions): boolean | 
 function renderDiffJson(result: DiffResult, options: RenderOptions): boolean | null {
     const stat = options.stat ?? 'avg'
     const filtered = applyFilters(result.diffs, options)
+    const {regressionThreshold} = result
     const exceededList = filtered.filter(d => exceedsThreshold(d, options))
     const hasThreshold = thresholdLabel(options) !== null
 
@@ -236,7 +247,7 @@ function renderDiffJson(result: DiffResult, options: RenderOptions): boolean | n
         baseCommit: result.baseCommit,
         headCommit: result.headCommit,
         stat,
-        regressions: filtered.filter(d => d.regressed).length,
+        regressions: filtered.filter(d => isRegressed(d, stat, result.regressionThreshold)).length,
         diffs: filtered.map(d => {
             const {base, head, delta} = getStatMs(d, stat)
             return {
@@ -244,7 +255,7 @@ function renderDiffJson(result: DiffResult, options: RenderOptions): boolean | n
                 baseMs: base,
                 headMs: head,
                 deltaMs: delta,
-                regressed: d.regressed,
+                regressed: isRegressed(d, stat, regressionThreshold),
                 baseCount: d.baseCount,
                 headCount: d.headCount
             }
@@ -282,7 +293,7 @@ function renderDiffMarkdown(result: DiffResult, options: RenderOptions): boolean
         return bS.delta - aS.delta
     })
     const exceededList = filtered.filter(d => exceedsThreshold(d, options))
-    const regressions = filtered.filter(d => d.regressed)
+    const regressions = filtered.filter(d => isRegressed(d, stat, result.regressionThreshold))
     const label = thresholdLabel(options)
     const hasThreshold = label !== null
     const lines: string[] = []
@@ -303,7 +314,7 @@ function renderDiffMarkdown(result: DiffResult, options: RenderOptions): boolean
         const {base, head, delta} = getStatMs(d, stat)
         const sig = shortSignature(d.signature)
         const deltaStr = `${delta > 0 ? '+' : ''}${delta.toFixed(2)}ms`
-        const flag = exceedsThreshold(d, options) ? ' 🔥' : d.regressed ? ' ▲' : ''
+        const flag = exceedsThreshold(d, options) ? ' 🔥' : isRegressed(d, stat, result.regressionThreshold) ? ' ▲' : ''
         const calls = `${d.baseCount}→${d.headCount}`
         lines.push(`| ${sig} | ${base.toFixed(2)}ms | ${head.toFixed(2)}ms | ${deltaStr}${flag} | ${calls} |`)
     }
