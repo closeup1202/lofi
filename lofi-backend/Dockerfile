@@ -9,7 +9,7 @@ COPY lofi-backend ./lofi-backend
 # settings.gradle includes all subprojects; create stub directories so Gradle
 # does not fail during settings evaluation when those sources are not needed.
 RUN mkdir -p lofi-collector lofi-actuator lofi-spring-boot-starter \
-             lofi-cli lofi-integration-test lofi-sample lofi-otel-exporter
+             lofi-cli lofi-integration-test lofi-otel-exporter
 
 RUN ./gradlew :lofi-backend:bootJar --no-daemon -q
 

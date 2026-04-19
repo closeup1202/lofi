@@ -5,7 +5,8 @@ import io.github.closeup1202.lofi.collector.persistence.SqliteMetricStore;
 import io.github.closeup1202.lofi.core.domain.CommitSummary;
 import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
-import io.github.closeup1202.lofi.core.port.MetricStore;
+import io.github.closeup1202.lofi.core.port.ReadableMetricStore;
+import io.github.closeup1202.lofi.core.port.WritableMetricStore;
 import io.github.closeup1202.lofi.integration.fixture.TestApplication;
 import io.github.closeup1202.lofi.integration.fixture.TestService;
 import org.junit.jupiter.api.*;
@@ -55,26 +56,34 @@ class LofiDeployDiffIntegrationTest {
 
         @Bean
         @Primary
-        public MetricStore testMetricStore(JdbcTemplate lofiJdbcTemplate) {
-            return new MetricStore() {
-                @Override
-                public void save(MethodMetric metric) {
-                    lofiJdbcTemplate.update(
-                            "INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ns, recorded_at) VALUES (?, ?, ?, ?, ?)",
-                            activeCommit.get(), metric.className(), metric.methodName(), metric.elapsedNs(), metric.recordedAt().toString()
-                    );
-                }
+        public TestMetricStore testMetricStore(JdbcTemplate lofiJdbcTemplate) {
+            return new TestMetricStore(lofiJdbcTemplate);
+        }
 
-                @Override
-                public DeploySnapshot snapshot(String commitHash) {
-                    return new SqliteMetricStore(lofiJdbcTemplate, new DeployContext(commitHash)).snapshot(commitHash);
-                }
+        static class TestMetricStore implements ReadableMetricStore, WritableMetricStore {
+            private final JdbcTemplate jdbcTemplate;
 
-                @Override
-                public List<CommitSummary> listCommits() {
-                    return new SqliteMetricStore(lofiJdbcTemplate, new DeployContext("")).listCommits();
-                }
-            };
+            TestMetricStore(JdbcTemplate jdbcTemplate) {
+                this.jdbcTemplate = jdbcTemplate;
+            }
+
+            @Override
+            public void save(MethodMetric metric) {
+                jdbcTemplate.update(
+                        "INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ns, recorded_at) VALUES (?, ?, ?, ?, ?)",
+                        activeCommit.get(), metric.className(), metric.methodName(), metric.elapsedNs(), metric.recordedAt().toString()
+                );
+            }
+
+            @Override
+            public DeploySnapshot snapshot(String commitHash) {
+                return new SqliteMetricStore(jdbcTemplate, new DeployContext(commitHash)).snapshot(commitHash);
+            }
+
+            @Override
+            public List<CommitSummary> listCommits() {
+                return new SqliteMetricStore(jdbcTemplate, new DeployContext("")).listCommits();
+            }
         }
     }
 

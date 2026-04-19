@@ -5,7 +5,8 @@ import io.github.closeup1202.lofi.core.domain.CommitSummary;
 import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import io.github.closeup1202.lofi.core.domain.MethodStats;
-import io.github.closeup1202.lofi.core.port.MetricStore;
+import io.github.closeup1202.lofi.core.port.ReadableMetricStore;
+import io.github.closeup1202.lofi.core.port.WritableMetricStore;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
@@ -14,12 +15,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * SQLite-backed implementation of {@link MetricStore}.
+ * SQLite-backed implementation of {@link ReadableMetricStore} and {@link WritableMetricStore}.
  * Metrics are persisted to {@code ~/.lofi/metrics.db} and survive application restarts.
  * Uses a dedicated {@link JdbcTemplate} bean ({@code lofiJdbcTemplate}) to avoid
  * interfering with the application's own datasource.
  */
-public class SqliteMetricStore implements MetricStore {
+public class SqliteMetricStore implements ReadableMetricStore, WritableMetricStore {
 
     private static final String STATS_BY_METHOD_SQL = """
             WITH ranked AS (

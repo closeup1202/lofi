@@ -4,7 +4,8 @@ import io.github.closeup1202.lofi.collector.context.DeployContext;
 import io.github.closeup1202.lofi.core.domain.CommitSummary;
 import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
-import io.github.closeup1202.lofi.core.port.MetricStore;
+import io.github.closeup1202.lofi.core.port.ReadableMetricStore;
+import io.github.closeup1202.lofi.core.port.WritableMetricStore;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
@@ -19,7 +20,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * Operates without SQLite for test/development environments within a single process.
  * Data is lost on restart.
  */
-public class InMemoryMetricStore implements MetricStore {
+public class InMemoryMetricStore implements ReadableMetricStore, WritableMetricStore {
 
     private final ConcurrentHashMap<String, CopyOnWriteArrayList<MethodMetric>> metricsByCommit = new ConcurrentHashMap<>();
     private final Deque<String> commitOrder = new ArrayDeque<>();

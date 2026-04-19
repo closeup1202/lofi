@@ -1,7 +1,7 @@
 package io.github.closeup1202.lofi.collector.persistence;
 
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
-import io.github.closeup1202.lofi.core.port.MetricStore;
+import io.github.closeup1202.lofi.core.port.WritableMetricStore;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -17,7 +17,7 @@ import static org.mockito.Mockito.*;
 class MetricBufferTest {
 
     @Mock
-    private MetricStore metricStore;
+    private WritableMetricStore metricStore;
 
     private MethodMetric metric() {
         return new MethodMetric("TestClass", "testMethod", 10_000_000L, Instant.now()); // 10ms in ns

@@ -8,7 +8,8 @@ import io.github.closeup1202.lofi.collector.persistence.LofiDatabaseInitializer;
 import io.github.closeup1202.lofi.collector.persistence.MetricBuffer;
 import io.github.closeup1202.lofi.collector.persistence.SqliteMetricStore;
 import io.github.closeup1202.lofi.core.port.DiffService;
-import io.github.closeup1202.lofi.core.port.MetricStore;
+import io.github.closeup1202.lofi.core.port.ReadableMetricStore;
+import io.github.closeup1202.lofi.core.port.WritableMetricStore;
 import io.github.closeup1202.lofi.core.service.DiffServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,25 +63,25 @@ public class LofiAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean({ReadableMetricStore.class, WritableMetricStore.class})
     @ConditionalOnProperty(name = "lofi.store-type", havingValue = "sqlite", matchIfMissing = true)
     @DependsOn("lofiDatabaseInitializer")
-    public MetricStore metricStore(@Qualifier("lofiJdbcTemplate") JdbcTemplate lofiJdbcTemplate, DeployContext deployContext) {
+    public SqliteMetricStore metricStore(@Qualifier("lofiJdbcTemplate") JdbcTemplate lofiJdbcTemplate, DeployContext deployContext) {
         return new SqliteMetricStore(lofiJdbcTemplate, deployContext);
     }
 
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean({ReadableMetricStore.class, WritableMetricStore.class})
     @ConditionalOnProperty(name = "lofi.store-type", havingValue = "in-memory")
-    public MetricStore inMemoryMetricStore(DeployContext deployContext, LofiProperties properties) {
+    public InMemoryMetricStore inMemoryMetricStore(DeployContext deployContext, LofiProperties properties) {
         return new InMemoryMetricStore(deployContext, properties.retentionCommits());
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public MetricBuffer metricBuffer(MetricStore metricStore, LofiProperties properties) {
+    public MetricBuffer metricBuffer(WritableMetricStore writableMetricStore, LofiProperties properties) {
         return new MetricBuffer(
-                metricStore,
+                writableMetricStore,
                 properties.buffer().flushThreshold(),
                 properties.buffer().flushDelayMs(),
                 properties.buffer().queueCapacity()
@@ -95,14 +96,14 @@ public class LofiAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public DiffService diffService(MetricStore metricStore, LofiProperties properties) {
-        return new DiffServiceImpl(metricStore, properties.regressionThreshold());
+    public DiffService diffService(ReadableMetricStore readableMetricStore, LofiProperties properties) {
+        return new DiffServiceImpl(readableMetricStore, properties.regressionThreshold());
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public LofiEndpoint lofiEndpoint(MetricStore metricStore, DiffService diffService) {
-        return new LofiEndpoint(metricStore, diffService);
+    public LofiEndpoint lofiEndpoint(ReadableMetricStore readableMetricStore, DiffService diffService) {
+        return new LofiEndpoint(readableMetricStore, diffService);
     }
 
     @Bean

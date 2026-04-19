@@ -8,6 +8,5 @@ include(
     'lofi-cli',
     'lofi-integration-test',
     'lofi-backend',
-    'lofi-otel-exporter',
-    'lofi-sample'
+    'lofi-otel-exporter'
 )

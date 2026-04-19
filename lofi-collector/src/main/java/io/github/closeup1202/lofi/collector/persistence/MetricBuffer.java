@@ -1,7 +1,7 @@
 package io.github.closeup1202.lofi.collector.persistence;
 
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
-import io.github.closeup1202.lofi.core.port.MetricStore;
+import io.github.closeup1202.lofi.core.port.WritableMetricStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * An in-process buffer that accumulates {@link MethodMetric} instances and flushes them
- * to {@link MetricStore} in batches, reducing write pressure on the underlying storage.
+ * to {@link WritableMetricStore} in batches, reducing write pressure on the underlying storage.
  *
  * <p>Flushing is triggered in two ways:
  * <ul>
@@ -38,17 +38,17 @@ public class MetricBuffer implements DisposableBean {
 
     private final ArrayBlockingQueue<MethodMetric> queue;
     private final AtomicBoolean flushing = new AtomicBoolean(false);
-    private final MetricStore metricStore;
+    private final WritableMetricStore metricStore;
     private final int flushThreshold;
     private final ScheduledExecutorService scheduler;
 
     /**
-     * @param metricStore    store that receives flushed metric batches
+     * @param metricStore    write-only store that receives flushed metric batches
      * @param flushThreshold queue size that triggers an immediate flush
      * @param flushDelayMs   interval in milliseconds between periodic scheduled flushes
      * @param queueCapacity  maximum number of metrics the buffer can hold before overflow
      */
-    public MetricBuffer(MetricStore metricStore, int flushThreshold, long flushDelayMs, int queueCapacity) {
+    public MetricBuffer(WritableMetricStore metricStore, int flushThreshold, long flushDelayMs, int queueCapacity) {
         this.metricStore = metricStore;
         this.flushThreshold = flushThreshold;
         this.queue = new ArrayBlockingQueue<>(queueCapacity);
@@ -111,6 +111,14 @@ public class MetricBuffer implements DisposableBean {
     @Override
     public void destroy() {
         scheduler.shutdown();
+        try {
+            if (!scheduler.awaitTermination(1, TimeUnit.SECONDS)) {
+                scheduler.shutdownNow();
+            }
+        } catch (InterruptedException ignored) {
+            scheduler.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
         flush();
     }
 }
