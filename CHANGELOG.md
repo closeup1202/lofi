@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.0] - 2026-04-20
+
+### Removed
+- **`MetricStore` interface removed (breaking)** — the unified `MetricStore extends ReadableMetricStore, WritableMetricStore` interface has been deleted. Actuator-mode implementations (`SqliteMetricStore`, `InMemoryMetricStore`) now implement `ReadableMetricStore` and `WritableMetricStore` directly. See [upgrade guide](#from-024-to-030).
+- **`lofi-sample` module removed** — the sample application module has been deleted; the integration test module (`lofi-integration-test`) covers the same scenarios.
+
+### Changed
+- **`LofiAutoConfiguration` bean wiring updated** — `MetricBuffer` now receives `WritableMetricStore`; `DiffService` and `LofiEndpoint` now receive `ReadableMetricStore`. Custom bean overrides must target the appropriate split interface.
+- **`MetricBuffer` constructor parameter type changed** — `MetricStore` → `WritableMetricStore` (breaking if constructed directly).
+- **`MetricBuffer.destroy()` shutdown sequence hardened** — `scheduler.awaitTermination(1s)` is now called between `shutdown()` and the final `flush()`, eliminating a theoretical race condition where an in-flight scheduled flush could overlap the destroy-time flush. If termination times out, `shutdownNow()` is called before flushing.
+
+### Performance
+- **Duplicate `STATS_BY_METHOD_SQL` consolidated** — extracted to `LofiSqlQueries.STATS_BY_METHOD` in `lofi-core`; `SqliteMetricStore` and `SqliteReadableMetricStore` both reference the single constant.
+
+### Documentation
+- **`lofi check` exit code table added** — conditions for exit `1`, exit `0`, and the missing-metrics case are now explicitly documented
+- **`retention-commits` added to Actuator mode configuration reference**
+- **`LOFI_BACKEND_REGRESSION_THRESHOLD` and `LOFI_BACKEND_RETENTION_COMMITS` added to Backend mode environment variable table**
+- **`regressed: true` judgment documents both mode config keys**
+
+---
+
 ## [0.2.4] - 2026-04-19
 
 ### Fixed
@@ -245,6 +267,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date       | Description                                      |
 |---------|------------|--------------------------------------------------|
+| 0.3.0   | 2026-04-20 | Remove MetricStore god interface, MetricBuffer shutdown race fix, SQL deduplication |
 | 0.2.4   | 2026-04-19 | 404 on missing snapshot, IngestableStore split, @EnableScheduling removed, DB-level percentile query |
 | 0.2.3   | 2026-04-15 | Backend API paths unified with actuator structure |
 | 0.2.2   | 2026-04-15 | regressed flag stat consistency, lofi-backend retention policy |
@@ -263,6 +286,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## Upgrade Guide
+
+### From 0.2.4 to 0.3.0
+
+**`MetricStore` interface removed (breaking)**
+
+`MetricStore` no longer exists. If you referenced it directly, update to the appropriate split interface:
+
+| Use case | Replace with |
+|---|---|
+| Reading metrics (snapshot, diff) | `ReadableMetricStore` |
+| Writing metrics (custom AOP collector) | `WritableMetricStore` |
+
+```java
+// Before
+@Autowired MetricStore metricStore;
+
+// After — inject the interface that matches your use case
+@Autowired ReadableMetricStore metricStore;  // read-only access
+@Autowired WritableMetricStore metricStore;  // write-only access
+```
+
+If you have a custom `MetricStore` implementation, split the `implements` clause:
+
+```java
+// Before
+public class MyStore implements MetricStore { ... }
+
+// After
+public class MyStore implements ReadableMetricStore, WritableMetricStore { ... }
+```
+
+**`MetricBuffer` constructor signature changed**
+
+If you construct `MetricBuffer` directly (outside of auto-configuration), update the first parameter type from `MetricStore` to `WritableMetricStore`.
 
 ### From 0.2.3 to 0.2.4
 
@@ -363,7 +420,8 @@ When contributing, please update this changelog:
 
 ---
 
-[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/closeup1202/lofi/compare/v0.2.4...v0.3.0
 [0.2.4]: https://github.com/closeup1202/lofi/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/closeup1202/lofi/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/closeup1202/lofi/compare/v0.2.1...v0.2.2
