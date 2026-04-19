@@ -293,7 +293,15 @@ lofi check <base>..<head> --threshold-rate <rate> --url <url>
 
 Exits with code `1` if any method exceeds the threshold — designed to fail a CI step automatically.
 
-`lofi check` requires both commits to be deployed with metrics collected — it is a staging → production gate, not a pre-deploy check. If no metrics are found for a commit, it prints a warning and exits with code `0` instead of failing.
+`lofi check` is a **post-deploy gate**, not a pre-deploy check. Both commits must already be deployed and have metrics collected before running it.
+
+| Condition | Exit code |
+|---|---|
+| Regression detected | `1` |
+| No regression | `0` |
+| Metrics not found for a commit | `0` (warning printed) |
+
+If metrics are missing for either commit, `lofi check` prints a warning and exits `0` rather than failing — so a missing deploy never blocks CI unintentionally.
 
 Use `--format json` to parse results programmatically, or `--format markdown` to post a report to a PR comment:
 
@@ -365,7 +373,8 @@ Both modes expose the same logical API. Paths differ by prefix.
 }
 ```
 
-> A method is flagged as `regressed: true` when `(headMs - baseMs) / baseMs` exceeds `lofi.regression-threshold` (default: `0.2` = 20%).
+> A method is flagged as `regressed: true` when `(headMs - baseMs) / baseMs` exceeds the regression threshold (default: `0.2` = 20%).  
+> Configurable via `lofi.regression-threshold` (Actuator mode) or `LOFI_BACKEND_REGRESSION_THRESHOLD` (Backend mode).
 
 ---
 
@@ -425,6 +434,7 @@ lofi:
   commit-hash: ${GIT_COMMIT_HASH:unknown}
   store-type: sqlite              # sqlite (default) or in-memory
   regression-threshold: 0.2       # threshold for regression detection (default: 0.2 = 20%)
+  retention-commits: 50           # number of recent deploys to retain (default: 50)
   buffer:
     flush-threshold: 100          # number of metrics to batch before flushing (default: 100)
     flush-delay-ms: 5000          # periodic flush interval in ms (default: 5000)
@@ -436,6 +446,8 @@ lofi:
 | Variable | Default | Description |
 |---|---|---|
 | `LOFI_BACKEND_DB_PATH` | `/data/metrics.db` | SQLite database path |
+| `LOFI_BACKEND_REGRESSION_THRESHOLD` | `0.2` | Regression detection threshold (20%) |
+| `LOFI_BACKEND_RETENTION_COMMITS` | `50` | Number of recent deploys to retain |
 
 ---
 
