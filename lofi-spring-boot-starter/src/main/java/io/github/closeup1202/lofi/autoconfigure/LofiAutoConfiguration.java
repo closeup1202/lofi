@@ -23,15 +23,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.springframework.scheduling.annotation.EnableScheduling;
-
 import java.nio.file.Path;
 
-// @EnableScheduling is required for MetricBuffer (SchedulingConfigurer) to perform periodic flushes.
-// Adding the lofi starter enables scheduling in the application context.
-
 @AutoConfiguration(after = DataSourceAutoConfiguration.class)
-@EnableScheduling
 @EnableConfigurationProperties(LofiProperties.class)
 public class LofiAutoConfiguration {
 

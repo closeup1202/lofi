@@ -4,14 +4,14 @@ import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import io.github.closeup1202.lofi.core.port.MetricStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.SchedulingConfigurer;
-import org.springframework.scheduling.config.ScheduledTaskRegistrar;
+import org.springframework.beans.factory.DisposableBean;
 
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -21,15 +21,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p>Flushing is triggered in two ways:
  * <ul>
  *   <li><b>Threshold-based:</b> when the queue reaches {@code flushThreshold} items.</li>
- *   <li><b>Time-based:</b> on a fixed-delay schedule every {@code flushDelayMs} milliseconds,
- *       implemented via {@link SchedulingConfigurer}.</li>
+ *   <li><b>Time-based:</b> a single daemon thread runs a fixed-delay flush every
+ *       {@code flushDelayMs} milliseconds, independently of Spring's scheduling.</li>
  * </ul>
  *
  * <p>If the queue is full, an overflow flush is attempted. If the queue remains full after
  * the flush, the oldest buffered metric is evicted to make room for the incoming one,
  * ensuring that recent measurements are always preserved over stale ones.
+ *
+ * <p>On application shutdown ({@link #destroy()}), the scheduler is stopped and a final
+ * flush drains any remaining metrics so none are lost on graceful shutdown.
  */
-public class MetricBuffer implements SchedulingConfigurer {
+public class MetricBuffer implements DisposableBean {
 
     private static final Logger log = LoggerFactory.getLogger(MetricBuffer.class);
 
@@ -37,7 +40,7 @@ public class MetricBuffer implements SchedulingConfigurer {
     private final AtomicBoolean flushing = new AtomicBoolean(false);
     private final MetricStore metricStore;
     private final int flushThreshold;
-    private final long flushDelayMs;
+    private final ScheduledExecutorService scheduler;
 
     /**
      * @param metricStore    store that receives flushed metric batches
@@ -48,8 +51,13 @@ public class MetricBuffer implements SchedulingConfigurer {
     public MetricBuffer(MetricStore metricStore, int flushThreshold, long flushDelayMs, int queueCapacity) {
         this.metricStore = metricStore;
         this.flushThreshold = flushThreshold;
-        this.flushDelayMs = flushDelayMs;
         this.queue = new ArrayBlockingQueue<>(queueCapacity);
+        this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "lofi-flush");
+            t.setDaemon(true);
+            return t;
+        });
+        scheduler.scheduleWithFixedDelay(this::scheduledFlush, flushDelayMs, flushDelayMs, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -92,8 +100,17 @@ public class MetricBuffer implements SchedulingConfigurer {
         metricStore.saveAll(batch);
     }
 
+    private void scheduledFlush() {
+        try {
+            flush();
+        } catch (Exception e) {
+            log.warn("[lofi] Scheduled flush failed: {}", e.getMessage());
+        }
+    }
+
     @Override
-    public void configureTasks(ScheduledTaskRegistrar taskRegistrar) {
-        taskRegistrar.addFixedDelayTask(this::flush, Duration.of(flushDelayMs, ChronoUnit.MILLIS));
+    public void destroy() {
+        scheduler.shutdown();
+        flush();
     }
 }
