@@ -1,9 +1,8 @@
 package io.github.closeup1202.lofi.actuator.service;
 
-import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.DiffResult;
 import io.github.closeup1202.lofi.core.domain.MethodDiff;
-import io.github.closeup1202.lofi.core.domain.MethodMetric;
+import io.github.closeup1202.lofi.core.domain.MethodStats;
 import io.github.closeup1202.lofi.core.port.DiffService;
 import io.github.closeup1202.lofi.core.port.ReadableMetricStore;
 import io.github.closeup1202.lofi.core.service.DiffServiceImpl;
@@ -12,10 +11,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.lang.NonNull;
 
-import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -30,42 +28,36 @@ class DiffServiceImplTest {
 
     private final String baseCommit = "testBaseCommit";
     private final String headCommit = "testHeadCommit";
+    private static final String SIG = "testClass.testMethod()";
 
     @BeforeEach
     void setUp() {
         diffService = new DiffServiceImpl(metricStore, 0.2);
     }
 
-    @NonNull
-    private static DeploySnapshot getDeploySnapshot(long elapsedNs, String commitHash) {
-        String className = "testClass";
-        String methodName = "testMethod";
-        MethodMetric metric = new MethodMetric(className, methodName, elapsedNs, Instant.now());
-        return new DeploySnapshot(commitHash, metric.recordedAt(), List.of(metric));
+    private static MethodStats stats(double avgNs) {
+        return new MethodStats(avgNs, avgNs, avgNs, 1);
     }
 
     @Test
     void shouldMarkRegressedWhenDeltaExceedsThreshold() {
-        long baseElapsedNs = 10L;
-        long headElapsedNs = 100L;
-
-        given(metricStore.snapshot(baseCommit)).willReturn(getDeploySnapshot(baseElapsedNs, baseCommit));
-        given(metricStore.snapshot(headCommit)).willReturn(getDeploySnapshot(headElapsedNs, headCommit));
+        given(metricStore.statsByMethod(baseCommit)).willReturn(Map.of(SIG, stats(10.0)));
+        given(metricStore.statsByMethod(headCommit)).willReturn(Map.of(SIG, stats(100.0)));
 
         DiffResult diffResult = diffService.diff(baseCommit, headCommit);
         List<MethodDiff> diffs = diffResult.diffs();
 
         assertThat(diffs).hasSize(1);
-        assertThat(diffs.get(0).baseNs()).isEqualTo((double) baseElapsedNs);
-        assertThat(diffs.get(0).headNs()).isEqualTo((double) headElapsedNs);
+        assertThat(diffs.get(0).baseNs()).isEqualTo(10.0);
+        assertThat(diffs.get(0).headNs()).isEqualTo(100.0);
         assertThat(diffs.get(0).deltaNs()).isEqualTo(90.0);
         assertThat(diffs.get(0).regressed()).isTrue();
     }
 
     @Test
     void shouldNotMarkRegressedWhenDeltaIsWithinThreshold() {
-        given(metricStore.snapshot(baseCommit)).willReturn(getDeploySnapshot(100L, baseCommit));
-        given(metricStore.snapshot(headCommit)).willReturn(getDeploySnapshot(119L, headCommit));
+        given(metricStore.statsByMethod(baseCommit)).willReturn(Map.of(SIG, stats(100.0)));
+        given(metricStore.statsByMethod(headCommit)).willReturn(Map.of(SIG, stats(119.0)));
 
         List<MethodDiff> diffs = diffService.diff(baseCommit, headCommit).diffs();
 
@@ -75,8 +67,8 @@ class DiffServiceImplTest {
 
     @Test
     void shouldNotMarkRegressedWhenDeltaIsWithinExactlyThreshold() {
-        given(metricStore.snapshot(baseCommit)).willReturn(getDeploySnapshot(100L, baseCommit));
-        given(metricStore.snapshot(headCommit)).willReturn(getDeploySnapshot(120L, headCommit));
+        given(metricStore.statsByMethod(baseCommit)).willReturn(Map.of(SIG, stats(100.0)));
+        given(metricStore.statsByMethod(headCommit)).willReturn(Map.of(SIG, stats(120.0)));
 
         List<MethodDiff> diffs = diffService.diff(baseCommit, headCommit).diffs();
 
@@ -86,8 +78,8 @@ class DiffServiceImplTest {
 
     @Test
     void shouldMarkRegressedWhenBaseElapsedNsIsZeroAndHeadIsPositive() {
-        given(metricStore.snapshot(baseCommit)).willReturn(getDeploySnapshot(0L, baseCommit));
-        given(metricStore.snapshot(headCommit)).willReturn(getDeploySnapshot(100L, headCommit));
+        given(metricStore.statsByMethod(baseCommit)).willReturn(Map.of(SIG, stats(0.0)));
+        given(metricStore.statsByMethod(headCommit)).willReturn(Map.of(SIG, stats(100.0)));
 
         List<MethodDiff> diffs = diffService.diff(baseCommit, headCommit).diffs();
 

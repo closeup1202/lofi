@@ -36,12 +36,6 @@ public class InMemoryMetricStore implements MetricStore {
     }
 
     @Override
-    public void ingest(String commitHash, List<MethodMetric> metrics) {
-        CopyOnWriteArrayList<MethodMetric> list = registerCommitIfAbsent(commitHash);
-        list.addAll(metrics);
-    }
-
-    @Override
     public void save(MethodMetric metric) {
         String commitHash = deployContext.commitHash();
         CopyOnWriteArrayList<MethodMetric> list = registerCommitIfAbsent(commitHash);

@@ -74,11 +74,6 @@ class LofiDeployDiffIntegrationTest {
                 public List<CommitSummary> listCommits() {
                     return new SqliteMetricStore(lofiJdbcTemplate, new DeployContext("")).listCommits();
                 }
-
-                @Override
-                public void ingest(String commitHash, List<MethodMetric> metrics) {
-                    throw new UnsupportedOperationException();
-                }
             };
         }
     }

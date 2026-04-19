@@ -1,6 +1,5 @@
 package io.github.closeup1202.lofi.core.service;
 
-import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.DiffResult;
 import io.github.closeup1202.lofi.core.domain.MethodDiff;
 import io.github.closeup1202.lofi.core.domain.MethodStats;
@@ -14,23 +13,21 @@ import java.util.Map;
 /**
  * Default implementation of {@link DiffService}.
  *
- * <p>Computes per-method latency diffs by comparing the average elapsed time in
- * the base and head deploy snapshots. A method is flagged as regressed when
- * {@code (headNs - baseNs) / baseNs > regressionThreshold}.
+ * <p>Computes per-method latency diffs by comparing aggregated stats between the base and
+ * head deploys. Stats are fetched via {@link ReadableMetricStore#statsByMethod}, which
+ * SQLite-backed stores resolve with a DB-level window-function query — avoiding loading
+ * all raw rows into the JVM heap.
  *
- * <p>Methods present only in the head deploy (new methods) are included but never
- * flagged as regressions. Methods present only in the base deploy (removed methods)
- * are included with a head latency of 0 ns and {@code regressed = false}.
+ * <p>A method is flagged as regressed when {@code (headNs - baseNs) / baseNs > regressionThreshold}.
+ * Methods present only in the head deploy are never flagged as regressions.
+ * Methods present only in the base deploy are included with head latency 0 ns and
+ * {@code regressed = false}.
  */
 public class DiffServiceImpl implements DiffService {
 
     private final ReadableMetricStore metricStore;
     private final double regressionThreshold;
 
-    /**
-     * @param metricStore         store used to load deploy snapshots for comparison
-     * @param regressionThreshold relative latency increase (0–1) above which a method is flagged as regressed
-     */
     public DiffServiceImpl(ReadableMetricStore metricStore, double regressionThreshold) {
         this.metricStore = metricStore;
         this.regressionThreshold = regressionThreshold;
@@ -40,11 +37,8 @@ public class DiffServiceImpl implements DiffService {
 
     @Override
     public DiffResult diff(String baseCommit, String headCommit) {
-        DeploySnapshot base = metricStore.snapshot(baseCommit);
-        DeploySnapshot head = metricStore.snapshot(headCommit);
-
-        Map<String, MethodStats> baseStats = base.statsByMethod();
-        Map<String, MethodStats> headStats = head.statsByMethod();
+        Map<String, MethodStats> baseStats = metricStore.statsByMethod(baseCommit);
+        Map<String, MethodStats> headStats = metricStore.statsByMethod(headCommit);
 
         List<MethodDiff> diffs = new ArrayList<>();
 

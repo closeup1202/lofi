@@ -1,12 +1,12 @@
 package io.github.closeup1202.lofi.backend.store;
 
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
-import io.github.closeup1202.lofi.core.port.WritableMetricStore;
+import io.github.closeup1202.lofi.core.port.IngestableStore;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 
-public class SqliteWritableMetricStore implements WritableMetricStore {
+public class SqliteWritableMetricStore implements IngestableStore {
 
     private final JdbcTemplate jdbcTemplate;
     private final int retentionCommits;
@@ -42,10 +42,5 @@ public class SqliteWritableMetricStore implements WritableMetricStore {
                         """,
                 retentionCommits
         );
-    }
-
-    @Override
-    public void save(MethodMetric metric) {
-        throw new UnsupportedOperationException();
     }
 }

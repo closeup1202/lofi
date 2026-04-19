@@ -61,5 +61,11 @@ public class BackendDatabaseInitializer implements InitializingBean {
                 CREATE INDEX IF NOT EXISTS idx_commit_hash
                 ON method_metric(commit_hash)
                 """);
+        // Covering index for the statsByMethod window-function query:
+        // supports commit_hash filter, class/method partition, and elapsed_ns sort
+        jdbcTemplate.execute("""
+                CREATE INDEX IF NOT EXISTS idx_commit_method_elapsed
+                ON method_metric(commit_hash, class_name, method_name, elapsed_ns)
+                """);
     }
 }

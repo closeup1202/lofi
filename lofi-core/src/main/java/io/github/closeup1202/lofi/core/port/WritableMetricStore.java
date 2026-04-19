@@ -5,12 +5,11 @@ import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import java.util.List;
 
 /**
- * Write-only port for persisting method metrics.
- * Implemented by the collector-side store (AOP interceptor path).
+ * Write port for the AOP collector path.
+ * Records metrics for the currently running deploy one measurement at a time.
+ * For the OTel ingest path see {@link IngestableStore}.
  */
 public interface WritableMetricStore {
-
-    void ingest(String commitHash, List<MethodMetric> metrics);
 
     /**
      * Persists a single method metric for the current deploy.

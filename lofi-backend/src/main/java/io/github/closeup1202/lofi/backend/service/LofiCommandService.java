@@ -1,17 +1,17 @@
 package io.github.closeup1202.lofi.backend.service;
 
 import io.github.closeup1202.lofi.backend.api.request.IngestRequest;
-import io.github.closeup1202.lofi.core.port.WritableMetricStore;
+import io.github.closeup1202.lofi.core.port.IngestableStore;
 
 public class LofiCommandService {
 
-    private final WritableMetricStore writableMetricStore;
+    private final IngestableStore ingestableStore;
 
-    public LofiCommandService(WritableMetricStore writableMetricStore) {
-        this.writableMetricStore = writableMetricStore;
+    public LofiCommandService(IngestableStore ingestableStore) {
+        this.ingestableStore = ingestableStore;
     }
 
     public void ingest(IngestRequest request) {
-        writableMetricStore.ingest(request.commitHash(), request.metrics());
+        ingestableStore.ingest(request.commitHash(), request.metrics());
     }
 }

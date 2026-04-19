@@ -5,8 +5,8 @@ import io.github.closeup1202.lofi.backend.service.LofiQueryService;
 import io.github.closeup1202.lofi.backend.store.SqliteReadableMetricStore;
 import io.github.closeup1202.lofi.backend.store.SqliteWritableMetricStore;
 import io.github.closeup1202.lofi.core.port.DiffService;
+import io.github.closeup1202.lofi.core.port.IngestableStore;
 import io.github.closeup1202.lofi.core.port.ReadableMetricStore;
-import io.github.closeup1202.lofi.core.port.WritableMetricStore;
 import io.github.closeup1202.lofi.core.service.DiffServiceImpl;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -55,7 +55,7 @@ public class BackendConfig {
 
     @Bean
     @DependsOn("backendDatabaseInitializer")
-    public WritableMetricStore writableMetricStore(JdbcTemplate lofiJdbcTemplate) {
+    public IngestableStore ingestableStore(JdbcTemplate lofiJdbcTemplate) {
         return new SqliteWritableMetricStore(lofiJdbcTemplate, retentionCommits);
     }
 
@@ -70,7 +70,7 @@ public class BackendConfig {
     }
 
     @Bean
-    public LofiCommandService lofiCommandService(WritableMetricStore writableMetricStore) {
-        return new LofiCommandService(writableMetricStore);
+    public LofiCommandService lofiCommandService(IngestableStore ingestableStore) {
+        return new LofiCommandService(ingestableStore);
     }
 }
