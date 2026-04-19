@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.4] - 2026-04-19
+
+### Fixed
+- **`LofiEndpoint` snapshot returns 404 when commit not found** — previously returned an empty metrics array with HTTP 200; now returns `{"error": "..."}` with HTTP 404, matching the behaviour of the backend mode (`LofiQueryService`)
+- **`UnsupportedOperationException` removed from store implementations** — `ingest()` has been split into a dedicated `IngestableStore` port; `SqliteMetricStore` and `InMemoryMetricStore` no longer declare an unimplemented `ingest()` override, and `SqliteWritableMetricStore` no longer declares an unimplemented `save()` override
+
+### Changed
+- **`@EnableScheduling` removed from `LofiAutoConfiguration`** — `MetricBuffer` now owns a single self-managed daemon thread (`lofi-flush`) via `ScheduledExecutorService`, so lofi no longer activates Spring's scheduling infrastructure in the host application. On graceful shutdown, `MetricBuffer.destroy()` stops the scheduler and performs a final flush so no buffered metrics are lost
+- **Diff engine uses DB-level percentile aggregation** — `DiffServiceImpl` now calls `ReadableMetricStore.statsByMethod()` instead of `snapshot()`, avoiding loading all raw rows into the JVM heap. SQLite-backed stores (`SqliteMetricStore`, `SqliteReadableMetricStore`) implement this with a CTE + `ROW_NUMBER()` window-function query that computes avg / P95 / P99 entirely in the database
+
+### Performance
+- **Composite index added** — both DB initializers now create `idx_commit_method_elapsed (commit_hash, class_name, method_name, elapsed_ns)`, providing a covering index for the `statsByMethod` window-function query
+
+---
+
 ## [0.2.3] - 2026-04-15
 
 ### Changed
@@ -230,6 +245,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date       | Description                                      |
 |---------|------------|--------------------------------------------------|
+| 0.2.4   | 2026-04-19 | 404 on missing snapshot, IngestableStore split, @EnableScheduling removed, DB-level percentile query |
+| 0.2.3   | 2026-04-15 | Backend API paths unified with actuator structure |
 | 0.2.2   | 2026-04-15 | regressed flag stat consistency, lofi-backend retention policy |
 | 0.2.1   | 2026-04-15 | P95/P99 percentiles, call counts in diff, CLI --stat / --min-calls |
 | 0.2.0   | 2026-04-14 | lofi-backend, lofi-otelcol, OTel pipeline, Docker, actuator endpoint consolidation, CVE fix |
@@ -246,6 +263,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## Upgrade Guide
+
+### From 0.2.3 to 0.2.4
+
+No API or configuration changes. Update the version and re-deploy.
+
+- **Custom `MetricStore` implementations**: `ingest()` is no longer part of `WritableMetricStore`. If your custom store implemented it, the method can be safely kept or removed — it is no longer required.
+- **Spring scheduling**: if your application was relying on lofi to activate `@EnableScheduling` as a side effect, add `@EnableScheduling` to your own configuration.
 
 ### From 0.1.x to 0.2.0
 
@@ -339,7 +363,9 @@ When contributing, please update this changelog:
 
 ---
 
-[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/closeup1202/lofi/compare/v0.2.3...v0.2.4
+[0.2.3]: https://github.com/closeup1202/lofi/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/closeup1202/lofi/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/closeup1202/lofi/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/closeup1202/lofi/compare/v0.1.8...v0.2.0
