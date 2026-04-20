@@ -68,6 +68,15 @@ public class SqliteReadableMetricStore implements ReadableMetricStore {
     }
 
     @Override
+    public Instant deployedAt(String commitHash) {
+        String raw = jdbcTemplate.queryForObject(
+                "SELECT MIN(recorded_at) FROM method_metric WHERE commit_hash = ?",
+                String.class, commitHash
+        );
+        return raw != null ? Instant.parse(raw) : Instant.EPOCH;
+    }
+
+    @Override
     public List<CommitSummary> listCommits() {
         return jdbcTemplate.query("""
                         SELECT commit_hash, MIN(recorded_at) AS deployed_at, COUNT(*) AS metric_count

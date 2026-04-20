@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.2] - 2026-04-20
+
+### Changed
+- **Snapshot endpoint now returns aggregated stats instead of raw metrics** — `GET /actuator/lofi/{hash}` and `GET /lofi/{hash}` previously returned a flat list of every individual measurement. They now return per-method `avg`, `p95`, `p99`, and `count` (all in milliseconds), keeping response size proportional to the number of methods rather than traffic volume.
+- **Percentile formula unified** — in-memory `DeploySnapshot.statsByMethod()` now uses the same index formula as the SQL window-function query (`(n * 95 + 99) / 100`), eliminating a subtle discrepancy between the two code paths.
+- **`InMemoryMetricStore.saveAll()` explicit override** — batch writes now use `CopyOnWriteArrayList.addAll()` instead of delegating to the default loop, making the intent clear.
+
+### Added
+- **`ReadableMetricStore.deployedAt(String commitHash)`** — new default method returning the earliest recorded timestamp for a commit. SQLite-backed stores override it with a lightweight `MIN(recorded_at)` query; the snapshot endpoint uses this instead of loading raw rows.
+- **`MethodStatsView`** — new view record exposing `avgMs`, `p95Ms`, `p99Ms`, `count` for a single method in the snapshot response.
+- **CI workflow** (`.github/workflows/ci.yaml`) — runs build and tests on every pull request and push to `main`.
+- **`SqliteMetricStoreTest`** — unit tests for the SQL window-function query covering avg, single-sample percentiles, 100-sample P95/P99, multiple methods, isolation between commits.
+- **`LofiBackendIntegrationTest`** — end-to-end integration test for backend mode covering ingest, commit listing, snapshot, diff, and regression detection.
+
+### Security
+- **Backend `/lofi/ingest` security guidance added to README** — documents the risk of exposing the ingest endpoint to untrusted networks and recommends keeping `lofi-backend` on an internal network or adding reverse-proxy authentication.
+
+---
+
 ## [0.3.1] - 2026-04-20
 
 ### Fixed

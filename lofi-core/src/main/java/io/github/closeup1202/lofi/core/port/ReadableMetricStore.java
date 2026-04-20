@@ -4,6 +4,7 @@ import io.github.closeup1202.lofi.core.domain.CommitSummary;
 import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.MethodStats;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +36,18 @@ public interface ReadableMetricStore {
      */
     default Map<String, MethodStats> statsByMethod(String commitHash) {
         return snapshot(commitHash).statsByMethod();
+    }
+
+    /**
+     * Returns the earliest recorded timestamp for the given commit, used as a proxy for deploy time.
+     * The default implementation delegates to {@link #snapshot}; SQLite-backed stores override this
+     * with a lightweight {@code MIN(recorded_at)} query.
+     *
+     * @param commitHash the commit hash identifying the deploy
+     * @return deploy time, or {@link Instant#EPOCH} if no metrics exist
+     */
+    default Instant deployedAt(String commitHash) {
+        return snapshot(commitHash).deployedAt();
     }
 
     /**

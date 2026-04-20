@@ -40,7 +40,7 @@ public class LofiController {
 
     @GetMapping("/{commitHash}")
     public DeploySnapshotView snapshot(@PathVariable @NotBlank String commitHash) {
-        return DeploySnapshotView.from(queryService.snapshot(commitHash));
+        return queryService.snapshot(commitHash);
     }
 
     @GetMapping("/diff")

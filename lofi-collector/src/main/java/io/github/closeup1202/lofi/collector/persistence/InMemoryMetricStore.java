@@ -43,6 +43,13 @@ public class InMemoryMetricStore implements ReadableMetricStore, WritableMetricS
         list.add(metric);
     }
 
+    @Override
+    public void saveAll(List<MethodMetric> metrics) {
+        String commitHash = deployContext.commitHash();
+        CopyOnWriteArrayList<MethodMetric> list = registerCommitIfAbsent(commitHash);
+        list.addAll(metrics);
+    }
+
     /**
      * Registers a new commit and evicts the oldest commit when retentionCommits is exceeded.
      * Synchronized to ensure consistency between commitOrder and metricsByCommit.
@@ -60,6 +67,14 @@ public class InMemoryMetricStore implements ReadableMetricStore, WritableMetricS
             }
         }
         return metricsByCommit.get(commitHash);
+    }
+
+    @Override
+    public synchronized Instant deployedAt(String commitHash) {
+        return metricsByCommit.getOrDefault(commitHash, new CopyOnWriteArrayList<>()).stream()
+                .map(MethodMetric::recordedAt)
+                .min(Instant::compareTo)
+                .orElse(Instant.EPOCH);
     }
 
     @Override

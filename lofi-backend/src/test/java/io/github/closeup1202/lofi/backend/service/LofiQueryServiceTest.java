@@ -1,11 +1,11 @@
 package io.github.closeup1202.lofi.backend.service;
 
 import io.github.closeup1202.lofi.backend.api.exception.CommitNotFoundException;
-import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.DiffResult;
-import io.github.closeup1202.lofi.core.domain.MethodMetric;
+import io.github.closeup1202.lofi.core.domain.MethodStats;
 import io.github.closeup1202.lofi.core.port.DiffService;
 import io.github.closeup1202.lofi.core.port.ReadableMetricStore;
+import io.github.closeup1202.lofi.core.view.DeploySnapshotView;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,23 +37,25 @@ class LofiQueryServiceTest {
     }
 
     @Test
-    void snapshot_shouldReturnSnapshot_whenMetricsExist() {
+    void snapshot_shouldReturnView_whenMetricsExist() {
         String commitHash = "a3f9c1";
-        DeploySnapshot snapshot = new DeploySnapshot(commitHash, Instant.now(),
-                List.of(new MethodMetric("TestClass", "testMethod", 1_000_000L, Instant.now())));
-        given(metricStore.snapshot(commitHash)).willReturn(snapshot);
+        Map<String, MethodStats> stats = Map.of(
+                "TestClass.testMethod()", new MethodStats(1_000_000.0, 1_500_000.0, 1_800_000.0, 3)
+        );
+        given(metricStore.statsByMethod(commitHash)).willReturn(stats);
+        given(metricStore.deployedAt(commitHash)).willReturn(Instant.parse("2026-04-14T04:10:00Z"));
 
-        DeploySnapshot result = queryService.snapshot(commitHash);
+        DeploySnapshotView result = queryService.snapshot(commitHash);
 
         assertThat(result.commitHash()).isEqualTo(commitHash);
-        assertThat(result.metrics()).hasSize(1);
+        assertThat(result.methods()).containsKey("TestClass.testMethod()");
+        assertThat(result.methods().get("TestClass.testMethod()").avgMs()).isEqualTo(1.0);
     }
 
     @Test
     void snapshot_shouldThrowCommitNotFoundException_whenNoMetrics() {
         String commitHash = "unknown";
-        given(metricStore.snapshot(commitHash))
-                .willReturn(new DeploySnapshot(commitHash, Instant.EPOCH, List.of()));
+        given(metricStore.statsByMethod(commitHash)).willReturn(Map.of());
 
         assertThatThrownBy(() -> queryService.snapshot(commitHash))
                 .isInstanceOf(CommitNotFoundException.class)

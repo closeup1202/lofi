@@ -1,7 +1,7 @@
 package io.github.closeup1202.lofi.actuator.endpoint;
 
 import io.github.closeup1202.lofi.core.domain.CommitSummary;
-import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
+import io.github.closeup1202.lofi.core.domain.MethodStats;
 import io.github.closeup1202.lofi.core.port.DiffService;
 import io.github.closeup1202.lofi.core.port.ReadableMetricStore;
 import io.github.closeup1202.lofi.core.view.DeploySnapshotView;
@@ -69,14 +69,17 @@ public class LofiEndpoint {
         }
 
         if (segments.length == 1) {
-            DeploySnapshot snapshot = metricStore.snapshot(segments[0]);
-            if (snapshot.metrics().isEmpty()) {
+            String commitHash = segments[0];
+            Map<String, MethodStats> stats = metricStore.statsByMethod(commitHash);
+            if (stats.isEmpty()) {
                 return new WebEndpointResponse<>(
-                        Map.of("error", "No metrics found for commit: " + segments[0]),
+                        Map.of("error", "No metrics found for commit: " + commitHash),
                         404
                 );
             }
-            return new WebEndpointResponse<>(DeploySnapshotView.from(snapshot));
+            return new WebEndpointResponse<>(
+                    DeploySnapshotView.from(commitHash, metricStore.deployedAt(commitHash), stats)
+            );
         }
 
         throw new IllegalArgumentException(

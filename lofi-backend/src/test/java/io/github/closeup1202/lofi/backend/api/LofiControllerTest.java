@@ -6,6 +6,8 @@ import io.github.closeup1202.lofi.backend.api.request.IngestRequest;
 import io.github.closeup1202.lofi.backend.service.LofiCommandService;
 import io.github.closeup1202.lofi.backend.service.LofiQueryService;
 import io.github.closeup1202.lofi.core.domain.*;
+import io.github.closeup1202.lofi.core.view.DeploySnapshotView;
+import io.github.closeup1202.lofi.core.view.MethodStatsView;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -15,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
@@ -53,15 +56,18 @@ class LofiControllerTest {
     @Test
     void snapshot_shouldReturn200_whenCommitExists() throws Exception {
         String commitHash = "a3f9c1";
-        DeploySnapshot snapshot = new DeploySnapshot(commitHash, Instant.parse("2026-04-14T04:10:00Z"),
-                List.of(new MethodMetric("TestClass", "testMethod", 2_000_000L, Instant.now())));
-        given(queryService.snapshot(commitHash)).willReturn(snapshot);
+        DeploySnapshotView view = new DeploySnapshotView(
+                commitHash,
+                Instant.parse("2026-04-14T04:10:00Z"),
+                Map.of("TestClass.testMethod()", new MethodStatsView(2.0, 3.0, 3.5, 5))
+        );
+        given(queryService.snapshot(commitHash)).willReturn(view);
 
         mockMvc.perform(get("/lofi/{commitHash}", commitHash))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.commitHash").value(commitHash))
-                .andExpect(jsonPath("$.metrics[0].elapsedMs").value(2.0))
-                .andExpect(jsonPath("$.metrics[0].elapsedNs").doesNotExist());
+                .andExpect(jsonPath("$.methods['TestClass.testMethod()'].avgMs").value(2.0))
+                .andExpect(jsonPath("$.methods['TestClass.testMethod()'].count").value(5));
     }
 
     @Test

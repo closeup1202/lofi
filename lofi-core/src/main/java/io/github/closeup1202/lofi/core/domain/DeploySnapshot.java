@@ -37,8 +37,9 @@ public record DeploySnapshot(
                                     .toList();
                             int n = sorted.size();
                             double avg = sorted.stream().mapToLong(Long::longValue).average().orElse(0);
-                            double p95 = sorted.get(Math.max(0, (int) Math.ceil(0.95 * n) - 1));
-                            double p99 = sorted.get(Math.max(0, (int) Math.ceil(0.99 * n) - 1));
+                            // Same formula as SQL: (n * 95 + 99) / 100 gives 1-indexed row; subtract 1 for 0-indexed
+                            double p95 = sorted.get(Math.max(0, (n * 95 + 99) / 100 - 1));
+                            double p99 = sorted.get(Math.max(0, (n * 99 + 99) / 100 - 1));
                             return new MethodStats(avg, p95, p99, n);
                         }
                 ));

@@ -65,7 +65,7 @@ The CLI detects the mode automatically from the `--url` target — no extra flag
 **Gradle**
 
 ```groovy
-implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.3.1'
+implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.3.2'
 ```
 
 **Maven**
@@ -74,7 +74,7 @@ implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.3.1'
 <dependency>
   <groupId>io.github.closeup1202</groupId>
   <artifactId>lofi-spring-boot-starter</artifactId>
-  <version>0.3.1</version>
+  <version>0.3.2</version>
 </dependency>
 ```
 
@@ -391,6 +391,22 @@ The following are automatically excluded to avoid double-counting or proxy confl
 **Backend mode** — the OpenTelemetry Java Agent instruments the JVM at the bytecode level. Spans are exported to `lofi-otelcol`, which extracts span duration and commit hash (`deployment.commit.hash` resource attribute) and forwards them to `lofi-backend`.
 
 In both modes, collected data is stored locally in SQLite. No data leaves your environment.
+
+---
+
+## Security
+
+### Backend mode: `/lofi/ingest` endpoint
+
+The `/lofi/ingest` endpoint accepts metric data from `lofi-otelcol` and has no authentication by default.
+
+**If `lofi-backend` is exposed to an untrusted network**, anyone can submit arbitrary metrics, which would corrupt regression data. Recommended mitigations:
+
+- Run `lofi-backend` on an **internal network only** (not internet-facing)
+- Use a reverse proxy (nginx, Traefik) to add token-based authentication in front of `/lofi/ingest`
+- Restrict access with firewall rules so only `lofi-otelcol` can reach the ingest endpoint
+
+In typical deployments, `lofi-backend` runs on a private infrastructure network alongside your services, so no additional hardening is needed.
 
 ---
 

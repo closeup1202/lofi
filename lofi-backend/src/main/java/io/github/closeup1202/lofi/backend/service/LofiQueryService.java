@@ -2,12 +2,14 @@ package io.github.closeup1202.lofi.backend.service;
 
 import io.github.closeup1202.lofi.backend.api.exception.CommitNotFoundException;
 import io.github.closeup1202.lofi.core.domain.CommitSummary;
-import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.DiffResult;
+import io.github.closeup1202.lofi.core.domain.MethodStats;
 import io.github.closeup1202.lofi.core.port.DiffService;
 import io.github.closeup1202.lofi.core.port.ReadableMetricStore;
+import io.github.closeup1202.lofi.core.view.DeploySnapshotView;
 
 import java.util.List;
+import java.util.Map;
 
 public class LofiQueryService {
 
@@ -23,12 +25,12 @@ public class LofiQueryService {
         return metricStore.listCommits();
     }
 
-    public DeploySnapshot snapshot(String commitHash) {
-        DeploySnapshot snapshot = metricStore.snapshot(commitHash);
-        if (snapshot.metrics().isEmpty()) {
+    public DeploySnapshotView snapshot(String commitHash) {
+        Map<String, MethodStats> stats = metricStore.statsByMethod(commitHash);
+        if (stats.isEmpty()) {
             throw new CommitNotFoundException(commitHash);
         }
-        return snapshot;
+        return DeploySnapshotView.from(commitHash, metricStore.deployedAt(commitHash), stats);
     }
 
     public DiffResult diff(String base, String head) {

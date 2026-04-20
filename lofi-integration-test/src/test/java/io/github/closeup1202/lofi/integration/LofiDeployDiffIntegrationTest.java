@@ -5,6 +5,7 @@ import io.github.closeup1202.lofi.collector.persistence.SqliteMetricStore;
 import io.github.closeup1202.lofi.core.domain.CommitSummary;
 import io.github.closeup1202.lofi.core.domain.DeploySnapshot;
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
+import io.github.closeup1202.lofi.core.domain.MethodStats;
 import io.github.closeup1202.lofi.core.port.ReadableMetricStore;
 import io.github.closeup1202.lofi.core.port.WritableMetricStore;
 import io.github.closeup1202.lofi.integration.fixture.TestApplication;
@@ -24,7 +25,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -67,6 +70,10 @@ class LofiDeployDiffIntegrationTest {
                 this.jdbcTemplate = jdbcTemplate;
             }
 
+            private SqliteMetricStore storeFor(String commitHash) {
+                return new SqliteMetricStore(jdbcTemplate, new DeployContext(commitHash));
+            }
+
             @Override
             public void save(MethodMetric metric) {
                 jdbcTemplate.update(
@@ -77,12 +84,22 @@ class LofiDeployDiffIntegrationTest {
 
             @Override
             public DeploySnapshot snapshot(String commitHash) {
-                return new SqliteMetricStore(jdbcTemplate, new DeployContext(commitHash)).snapshot(commitHash);
+                return storeFor(commitHash).snapshot(commitHash);
+            }
+
+            @Override
+            public Map<String, MethodStats> statsByMethod(String commitHash) {
+                return storeFor(commitHash).statsByMethod(commitHash);
+            }
+
+            @Override
+            public Instant deployedAt(String commitHash) {
+                return storeFor(commitHash).deployedAt(commitHash);
             }
 
             @Override
             public List<CommitSummary> listCommits() {
-                return new SqliteMetricStore(jdbcTemplate, new DeployContext("")).listCommits();
+                return storeFor("").listCommits();
             }
         }
     }
@@ -115,7 +132,7 @@ class LofiDeployDiffIntegrationTest {
         mockMvc.perform(get("/actuator/lofi/" + BASE_COMMIT))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.commitHash").value(BASE_COMMIT))
-                .andExpect(jsonPath("$.metrics.length()").value(3));
+                .andExpect(jsonPath("$.methods").isNotEmpty());
     }
 
     @Test
@@ -133,7 +150,7 @@ class LofiDeployDiffIntegrationTest {
         mockMvc.perform(get("/actuator/lofi/" + HEAD_COMMIT))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.commitHash").value(HEAD_COMMIT))
-                .andExpect(jsonPath("$.metrics.length()").value(3));
+                .andExpect(jsonPath("$.methods").isNotEmpty());
     }
 
     @Test
