@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.1] - 2026-04-20
+
+### Fixed
+- **`spring-boot-configuration-processor` added to `lofi-spring-boot-starter`** — the annotation processor was missing, so IDE property completion (`lofi.*` keys in `application.yml`) and `spring-configuration-metadata.json` were not generated at compile time. Adding the processor restores full IDE auto-complete for all `lofi.*` configuration properties.
+
+---
+
 ## [0.3.0] - 2026-04-20
 
 ### Removed
@@ -267,6 +274,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date       | Description                                      |
 |---------|------------|--------------------------------------------------|
+| 0.3.1   | 2026-04-20 | Add spring-boot-configuration-processor for IDE property completion |
 | 0.3.0   | 2026-04-20 | Remove MetricStore god interface, MetricBuffer shutdown race fix, SQL deduplication |
 | 0.2.4   | 2026-04-19 | 404 on missing snapshot, IngestableStore split, @EnableScheduling removed, DB-level percentile query |
 | 0.2.3   | 2026-04-15 | Backend API paths unified with actuator structure |
@@ -286,6 +294,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## Upgrade Guide
+
+### From 0.3.0 to 0.3.1
+
+No API or configuration changes. Update the version and re-deploy.
 
 ### From 0.2.4 to 0.3.0
 
@@ -420,7 +432,8 @@ When contributing, please update this changelog:
 
 ---
 
-[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/closeup1202/lofi/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/closeup1202/lofi/compare/v0.2.4...v0.3.0
 [0.2.4]: https://github.com/closeup1202/lofi/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/closeup1202/lofi/compare/v0.2.2...v0.2.3
