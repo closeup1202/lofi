@@ -32,17 +32,17 @@ export interface DiffResult {
     regressionThreshold: number
 }
 
-export interface MethodMetric {
-    className: string
-    methodName: string
-    elapsedMs: number
-    recordedAt: string
+export interface MethodStats {
+    avgMs: number
+    p95Ms: number
+    p99Ms: number
+    count: number
 }
 
 export interface DeploySnapshot {
     commitHash: string
     deployedAt: string
-    metrics: MethodMetric[]
+    methods: Record<string, MethodStats>
 }
 
 export type StatType = 'avg' | 'p95' | 'p99'

@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import {DeploySnapshot, DiffResult, MethodDiff, StatType, ThresholdOptions} from './client'
+import {DeploySnapshot, DiffResult, MethodDiff, MethodStats, StatType, ThresholdOptions} from './client'
 
 const DIFF_LINE = '─'.repeat(96)
 const SNAPSHOT_LINE = '─'.repeat(61)
@@ -349,36 +349,36 @@ export function renderDiff(result: DiffResult, options: RenderOptions = {}): boo
 
 // ─── renderSnapshot ───────────────────────────────────────────────────────────
 
+const SNAPSHOT_LINE_WIDE = '─'.repeat(80)
+
 export function renderSnapshot(snapshot: DeploySnapshot): void {
+    const entries = Object.entries(snapshot.methods)
+    const sorted = entries.sort((a, b) => b[1].avgMs - a[1].avgMs)
+
     console.log()
     console.log(chalk.bold('Snapshot') + '  ' + chalk.gray(snapshot.commitHash))
-    console.log(chalk.gray(SNAPSHOT_LINE))
-    console.log(chalk.gray(`  Deployed at: ${snapshot.deployedAt}`))
-    console.log(chalk.gray(`  Metrics collected: ${snapshot.metrics.length}`))
+    console.log(chalk.gray(SNAPSHOT_LINE_WIDE))
+    console.log(chalk.gray(`  Deployed at:     ${snapshot.deployedAt}`))
+    console.log(chalk.gray(`  Methods tracked: ${entries.length}`))
 
-    if (snapshot.metrics.length > 0) {
-        const avgByMethod = new Map<string, { total: number; count: number }>()
-        for (const m of snapshot.metrics) {
-            const key = `${m.className}.${m.methodName}()`
-            const curr = avgByMethod.get(key) ?? {total: 0, count: 0}
-            avgByMethod.set(key, {total: curr.total + m.elapsedMs, count: curr.count + 1})
-        }
-
-        const sorted = [...avgByMethod.entries()]
-            .sort((a, b) => (b[1].total / b[1].count) - (a[1].total / a[1].count))
-
+    if (sorted.length > 0) {
         console.log()
         console.log(
             chalk.gray('  Method'.padEnd(45)) +
             chalk.gray('Avg'.padStart(9)) +
+            chalk.gray('P95'.padStart(9)) +
+            chalk.gray('P99'.padStart(9)) +
             chalk.gray('Calls'.padStart(7))
         )
-        console.log(chalk.gray(SNAPSHOT_LINE))
+        console.log(chalk.gray(SNAPSHOT_LINE_WIDE))
 
-        for (const [sig, {total, count}] of sorted) {
-            const avgMs = total / count
+        for (const [sig, stats] of sorted) {
             console.log(chalk.gray(
-                `  ${shortSignature(sig).padEnd(44)} ${(avgMs.toFixed(2) + 'ms').padStart(8)} ${String(count).padStart(5)}`
+                `  ${shortSignature(sig).padEnd(44)}` +
+                ` ${(stats.avgMs.toFixed(2) + 'ms').padStart(8)}` +
+                ` ${(stats.p95Ms.toFixed(2) + 'ms').padStart(8)}` +
+                ` ${(stats.p99Ms.toFixed(2) + 'ms').padStart(8)}` +
+                ` ${String(stats.count).padStart(5)}`
             ))
         }
     }

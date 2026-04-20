@@ -228,14 +228,14 @@ lofi snapshot --url http://localhost:8080
 
 ```
 Snapshot  a3f9c1
-────────────────────────────────────────────────────────────
-  Deployed at: 2026-04-14T10:00:00Z
-  Metrics collected: 120
+────────────────────────────────────────────────────────────────────────────────
+  Deployed at:     2026-04-14T10:00:00Z
+  Methods tracked: 2
 
-  Method                                           Avg   Calls
-────────────────────────────────────────────────────────────
-  OrderService.createOrder()                    14.23ms    45
-  UserService.findById()                         3.05ms    75
+  Method                                           Avg      P95      P99  Calls
+────────────────────────────────────────────────────────────────────────────────
+  OrderService.createOrder()                    14.23ms  28.50ms  45.10ms    45
+  UserService.findById()                         3.05ms   5.20ms   8.10ms    75
 ```
 
 ---
@@ -339,7 +339,7 @@ lofi diff a3f9c1..d82e04 --url http://localhost:9292
 **1. Add the library to your Spring Boot app**
 
 ```groovy
-implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.2.3'
+implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.3.2'
 ```
 
 **2. Expose the actuator endpoint**
