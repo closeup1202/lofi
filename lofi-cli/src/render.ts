@@ -10,14 +10,14 @@ export interface RenderOptions extends ThresholdOptions {
     format?: OutputFormat
 }
 
-function shortSignature(signature: string): string {
+export function shortSignature(signature: string): string {
     const parts = signature.split('.')
     const methodPart = parts[parts.length - 1]  // e.g. "create()"
     const className = parts[parts.length - 2]   // e.g. "OrderController"
     return `${className}.${methodPart}`
 }
 
-function getStatMs(d: MethodDiff, stat: StatType = 'avg'): {base: number; head: number; delta: number} {
+export function getStatMs(d: MethodDiff, stat: StatType = 'avg'): {base: number; head: number; delta: number} {
     switch (stat) {
         case 'p95':
             return {base: d.baseP95Ms, head: d.headP95Ms, delta: d.headP95Ms - d.baseP95Ms}
@@ -28,7 +28,7 @@ function getStatMs(d: MethodDiff, stat: StatType = 'avg'): {base: number; head: 
     }
 }
 
-function applyFilters(diffs: MethodDiff[], options: RenderOptions): MethodDiff[] {
+export function applyFilters(diffs: MethodDiff[], options: RenderOptions): MethodDiff[] {
     if (options.minCalls === undefined) return diffs
     return diffs.filter(d => {
         // Only filter when both commits have data — absent methods (count=0) pass through
@@ -39,14 +39,14 @@ function applyFilters(diffs: MethodDiff[], options: RenderOptions): MethodDiff[]
     })
 }
 
-function isRegressed(d: MethodDiff, stat: StatType, regressionThreshold: number): boolean {
+export function isRegressed(d: MethodDiff, stat: StatType, regressionThreshold: number): boolean {
     const {base, delta} = getStatMs(d, stat)
     if (delta <= 0) return false
     if (base === 0) return delta > 0
     return (delta / base) > regressionThreshold
 }
 
-function exceedsThreshold(d: MethodDiff, options: RenderOptions): boolean {
+export function exceedsThreshold(d: MethodDiff, options: RenderOptions): boolean {
     const {base, delta} = getStatMs(d, options.stat)
     if (delta <= 0) return false
     if (options.thresholdMs !== undefined) return delta > options.thresholdMs
@@ -54,7 +54,7 @@ function exceedsThreshold(d: MethodDiff, options: RenderOptions): boolean {
     return false
 }
 
-function thresholdLabel(options: ThresholdOptions): string | null {
+export function thresholdLabel(options: ThresholdOptions): string | null {
     if (options.thresholdMs !== undefined) return `${options.thresholdMs}ms`
     if (options.thresholdRate !== undefined) return `${(options.thresholdRate * 100).toFixed(0)}%`
     return null

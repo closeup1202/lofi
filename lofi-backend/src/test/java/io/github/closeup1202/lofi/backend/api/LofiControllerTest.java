@@ -3,6 +3,7 @@ package io.github.closeup1202.lofi.backend.api;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.closeup1202.lofi.backend.api.exception.CommitNotFoundException;
 import io.github.closeup1202.lofi.backend.api.request.IngestRequest;
+import io.github.closeup1202.lofi.backend.api.security.LofiAuthInterceptor;
 import io.github.closeup1202.lofi.backend.service.LofiCommandService;
 import io.github.closeup1202.lofi.backend.service.LofiQueryService;
 import io.github.closeup1202.lofi.core.domain.*;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -27,7 +29,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(LofiController.class)
+@TestPropertySource(properties = "lofi.backend.api-key=test-api-key")
 class LofiControllerTest {
+
+    private static final String API_KEY = "test-api-key";
 
     @Autowired
     private MockMvc mockMvc;
@@ -116,10 +121,11 @@ class LofiControllerTest {
         List<MethodMetric> metrics = List.of(
                 new MethodMetric("TestClass", "testMethod", 1_000_000L, Instant.now())
         );
-        IngestRequest request = new IngestRequest("a3f9c1", metrics);
+        IngestRequest request = new IngestRequest("a3f9c1d", metrics);
         doNothing().when(commandService).ingest(request);
 
         mockMvc.perform(post("/lofi/ingest")
+                        .header(LofiAuthInterceptor.HEADER, API_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated());
@@ -132,6 +138,7 @@ class LofiControllerTest {
         ));
 
         mockMvc.perform(post("/lofi/ingest")
+                        .header(LofiAuthInterceptor.HEADER, API_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -139,11 +146,77 @@ class LofiControllerTest {
 
     @Test
     void ingest_shouldReturn400_whenMetricsIsEmpty() throws Exception {
-        IngestRequest request = new IngestRequest("a3f9c1", List.of());
+        IngestRequest request = new IngestRequest("a3f9c1d", List.of());
+
+        mockMvc.perform(post("/lofi/ingest")
+                        .header(LofiAuthInterceptor.HEADER, API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void ingest_shouldReturn400_whenCommitHashIsNotHex() throws Exception {
+        IngestRequest request = new IngestRequest("not-a-hash!", List.of(
+                new MethodMetric("TestClass", "testMethod", 1_000_000L, Instant.now())
+        ));
+
+        mockMvc.perform(post("/lofi/ingest")
+                        .header(LofiAuthInterceptor.HEADER, API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void ingest_shouldReturn400_whenCommitHashIsTooShort() throws Exception {
+        IngestRequest request = new IngestRequest("abc12", List.of(
+                new MethodMetric("TestClass", "testMethod", 1_000_000L, Instant.now())
+        ));
+
+        mockMvc.perform(post("/lofi/ingest")
+                        .header(LofiAuthInterceptor.HEADER, API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void ingest_shouldReturn400_whenMetricsExceedLimit() throws Exception {
+        List<MethodMetric> metrics = java.util.stream.IntStream.range(0, 10_001)
+                .mapToObj(i -> new MethodMetric("TestClass", "testMethod" + i, 1_000_000L, Instant.now()))
+                .toList();
+        IngestRequest request = new IngestRequest("a3f9c1d", metrics);
+
+        mockMvc.perform(post("/lofi/ingest")
+                        .header(LofiAuthInterceptor.HEADER, API_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void ingest_shouldReturn401_whenApiKeyMissing() throws Exception {
+        IngestRequest request = new IngestRequest("a3f9c1d", List.of(
+                new MethodMetric("TestClass", "testMethod", 1_000_000L, Instant.now())
+        ));
 
         mockMvc.perform(post("/lofi/ingest")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void ingest_shouldReturn401_whenApiKeyWrong() throws Exception {
+        IngestRequest request = new IngestRequest("a3f9c1d", List.of(
+                new MethodMetric("TestClass", "testMethod", 1_000_000L, Instant.now())
+        ));
+
+        mockMvc.perform(post("/lofi/ingest")
+                        .header(LofiAuthInterceptor.HEADER, "wrong-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
     }
 }

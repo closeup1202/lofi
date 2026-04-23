@@ -1,0 +1,53 @@
+# Regression check via lofi-actuator (embedded in your Spring Boot app)
+#
+# Triggers on every PR. Calls /actuator/lofi on a running staging instance of your app.
+# Fails the job (and the PR check) if any method exceeds the configured latency threshold.
+#
+# Prerequisites:
+#   - Your staging app must include lofi-spring-boot-starter and expose /actuator/lofi.
+#   - The PR's HEAD commit must already be deployed to staging when this runs (e.g. via a
+#     preview deploy step earlier in your pipeline).
+#
+# Required GitHub repository secrets:
+#   STAGING_URL       e.g. https://staging.your-app.com
+#
+# If the actuator endpoint is behind basic auth or a token, add the relevant header to your
+# reverse proxy or expose it on a private network reachable from GitHub Actions runners.
+
+name: lofi regression check (actuator mode)
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  lofi-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Resolve base / head commits
+        id: commits
+        run: |
+          BASE=$(git merge-base origin/${{ github.base_ref }} HEAD)
+          HEAD=$(git rev-parse HEAD)
+          echo "base=${BASE:0:40}" >> "$GITHUB_OUTPUT"
+          echo "head=${HEAD:0:40}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install lofi-cli
+        run: npm install -g @closeup1202/lofi-cli
+
+      - name: Run lofi check
+        run: |
+          lofi check ${{ steps.commits.outputs.base }}..${{ steps.commits.outputs.head }} \
+            --url "${{ secrets.STAGING_URL }}" \
+            --threshold-rate 0.2 \
+            --min-calls 30 \
+            --stat p95 \
+            --format md

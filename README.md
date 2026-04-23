@@ -203,6 +203,10 @@ lofi-backend  (REST API :9292)
 ### Option A — Docker Compose (recommended)
 
 ```bash
+# Required: pick any secret string and export it.
+# Both lofi-backend (validation) and lofi-otelcol (ingest header) read this.
+export LOFI_API_KEY=$(openssl rand -hex 32)
+
 # Start lofi-backend + lofi-otelcol
 docker compose up
 
@@ -224,10 +228,13 @@ lofi diff a3f9c1..d82e04 --url http://localhost:9292
 ### Option B — Binary install
 
 ```bash
+# Required: shared secret read by both backend and collector
+export LOFI_API_KEY=$(openssl rand -hex 32)
+
 # Install lofi-otelcol
 curl -fsSL https://raw.githubusercontent.com/closeup1202/lofi/main/install.sh | sh
 
-# Start lofi-backend
+# Start lofi-backend (LOFI_API_KEY must be set, see Security section)
 ./gradlew :lofi-backend:bootRun
 
 # Start the collector
@@ -252,6 +259,7 @@ processors:
 exporters:
   lofi:
     backend_url: http://localhost:9292
+    api_key: ${env:LOFI_API_KEY}
 
 service:
   pipelines:
@@ -323,6 +331,15 @@ Use `--format json` to parse results programmatically, or `--format markdown` to
       --url https://staging.myapp.com > report.md || true
     gh pr comment ${{ github.event.pull_request.number }} --body-file report.md
 ```
+
+### Drop-in GitHub Actions workflows
+
+Ready-to-use workflow files for both deployment modes are in [`examples/github-actions/`](./examples/github-actions/):
+
+- [`lofi-regression-check-backend.yml`](./examples/github-actions/lofi-regression-check-backend.yml) — for `lofi-backend` users
+- [`lofi-regression-check-actuator.yml`](./examples/github-actions/lofi-regression-check-actuator.yml) — for `lofi-actuator` users
+
+Copy the file matching your setup into `.github/workflows/`, set the required secret, and PRs will automatically be checked for latency regressions.
 
 The `--url` flag defaults to `http://localhost:8080`. The CLI auto-detects whether the target is a `lofi-backend` instance or a `lofi-actuator` endpoint — no extra configuration needed.
 
@@ -398,15 +415,38 @@ In both modes, collected data is stored locally in SQLite. No data leaves your e
 
 ### Backend mode: `/lofi/ingest` endpoint
 
-The `/lofi/ingest` endpoint accepts metric data from `lofi-otelcol` and has no authentication by default.
+`POST /lofi/ingest` requires an **API key** sent in the `X-Lofi-Api-Key` header. `lofi-backend` refuses to start without one.
 
-**If `lofi-backend` is exposed to an untrusted network**, anyone can submit arbitrary metrics, which would corrupt regression data. Recommended mitigations:
+**Setup**
 
-- Run `lofi-backend` on an **internal network only** (not internet-facing)
-- Use a reverse proxy (nginx, Traefik) to add token-based authentication in front of `/lofi/ingest`
-- Restrict access with firewall rules so only `lofi-otelcol` can reach the ingest endpoint
+```bash
+# 1. Generate a secret (any string works; 32 hex chars recommended)
+export LOFI_API_KEY=$(openssl rand -hex 32)
 
-In typical deployments, `lofi-backend` runs on a private infrastructure network alongside your services, so no additional hardening is needed.
+# 2. lofi-backend reads it from application.yml: api-key: ${LOFI_API_KEY:}
+#    (or set lofi.backend.api-key directly)
+
+# 3. lofi-otelcol reads the same env var via collector-config.yaml: api_key: ${env:LOFI_API_KEY}
+```
+
+**Behavior**
+
+| Condition | Response |
+|-----------|----------|
+| `lofi.backend.api-key` not set at startup | Application fails to start with `IllegalStateException` |
+| `X-Lofi-Api-Key` header missing on `POST /lofi/ingest` | `401 Unauthorized` |
+| Header present but value mismatched | `401 Unauthorized` (constant-time comparison) |
+| Read endpoints (`GET /lofi`, `/lofi/{hash}`, `/lofi/diff`) | No authentication — these are intended for CLI/dashboard consumption |
+
+In typical deployments, additionally run `lofi-backend` on a private network. The API key prevents accidental cross-tenant pollution; network isolation prevents targeted attacks.
+
+### Migrating from 0.3.x
+
+Versions ≤ 0.3.2 had no authentication on `/lofi/ingest`. To upgrade:
+
+1. Set `LOFI_API_KEY` (or `lofi.backend.api-key`) on the backend
+2. Set the same value on every `lofi-otelcol` instance (`api_key` config field)
+3. Restart both — no data migration required
 
 ---
 

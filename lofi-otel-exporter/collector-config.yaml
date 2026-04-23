@@ -17,6 +17,7 @@ processors:
 exporters:
   lofi:
     backend_url: http://localhost:9292
+    api_key: ${env:LOFI_API_KEY}
 
 service:
   telemetry:

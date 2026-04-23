@@ -1,6 +1,6 @@
 {
   "name": "@closeup1202/lofi-cli",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "CLI for lofi — Method-level latency regressions between deploys",
   "bin": {
     "lofi": "./dist/index.js"
@@ -11,6 +11,7 @@
   "scripts": {
     "build": "tsup src/index.ts --format cjs --target node18",
     "dev": "tsup src/index.ts --watch",
+    "test": "vitest run",
     "prepublishOnly": "npm run build"
   },
   "publishConfig": {
@@ -35,6 +36,7 @@
   "devDependencies": {
     "@types/node": "^25.6.0",
     "tsup": "^8.5.1",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "vitest": "^2.1.8"
   }
 }

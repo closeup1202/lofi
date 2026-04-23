@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0] - 2026-04-23
+
+### Security (breaking)
+- **`/lofi/ingest` now requires API-key authentication** — `lofi-backend` refuses to start unless `lofi.backend.api-key` (or `LOFI_API_KEY` env var) is set. Every `POST /lofi/ingest` request must include the `X-Lofi-Api-Key` header; missing or mismatched keys return `401 Unauthorized` (constant-time comparison). Read endpoints remain unauthenticated. **Upgrade**: set `LOFI_API_KEY` on the backend and pass the same value to every `lofi-otelcol` instance via the new `api_key` exporter config field. See README "Backend mode: `/lofi/ingest` endpoint" and "Migrating from 0.3.x".
+- **`lofi-otel-exporter` `api_key` config required** — the Go exporter now refuses to start without `api_key` set in `collector-config.yaml`.
+
+### Added
+- **`lofi-backend` Spring Actuator `/actuator/health` endpoint** — `spring-boot-starter-actuator` added; only the `health` endpoint is exposed (`management.endpoints.web.exposure.include=health`), with `show-details=never` to avoid leaking infra info. The auth interceptor does not cover this path, so it is freely available for liveness/readiness probes.
+- **GitHub Actions workflow examples** — `examples/github-actions/` contains drop-in workflows for both `lofi-backend` and `lofi-actuator` modes that block PRs introducing latency regressions. See README "Drop-in GitHub Actions workflows".
+- **CLI test suite (Vitest)** — 24 unit tests covering `LofiClient` mode resolution / URL switching and pure render helpers (`shortSignature`, `getStatMs`, `applyFilters`, `isRegressed`, `exceedsThreshold`, `thresholdLabel`). Wired into CI as a separate job.
+
+### Changed
+- **`IngestRequest` validation hardened** — `commitHash` must match `^[a-fA-F0-9]{7,40}$` (git short/full hash); `metrics` capped at 10,000 entries per request. Invalid requests return `400 Bad Request`.
+- **SQLite JDBC driver version unified** — `sqliteJdbcVersion = 3.49.1.0` extracted to root `build.gradle` `ext` block and referenced by `lofi-collector`, `lofi-backend`, `lofi-integration-test`. Eliminates the previous 3.45.3.0/3.49.1.0 split.
+
+### Fixed
+- **Docker Compose healthcheck** — `lofi-backend` healthcheck now hits the new `/actuator/health` endpoint instead of the non-existent `/lofi/commits` path.
+
+---
+
 ## [0.3.2] - 2026-04-20
 
 ### Changed

@@ -1,11 +1,15 @@
 package io.github.closeup1202.lofi.backend;
 
 import io.github.closeup1202.lofi.backend.api.request.IngestRequest;
+import io.github.closeup1202.lofi.backend.api.security.LofiAuthInterceptor;
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -25,14 +29,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 class LofiBackendIntegrationTest {
 
     static final String DB_PATH = Path.of(System.getProperty("java.io.tmpdir"), "lofi-backend-test.db").toString();
-    static final String BASE_COMMIT = "base-backend-001";
-    static final String HEAD_COMMIT = "head-backend-002";
+    static final String BASE_COMMIT = "ba5eba5eba5e0001";
+    static final String HEAD_COMMIT = "deadbeefdead0002";
+    static final String API_KEY = "test-api-key";
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         registry.add("lofi.backend.db-path", () -> DB_PATH);
         registry.add("lofi.backend.regression-threshold", () -> "0.2");
         registry.add("lofi.backend.retention-commits", () -> "50");
+        registry.add("lofi.backend.api-key", () -> API_KEY);
+    }
+
+    private HttpEntity<IngestRequest> authedIngest(IngestRequest request) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(LofiAuthInterceptor.HEADER, API_KEY);
+        return new HttpEntity<>(request, headers);
     }
 
     @Autowired
@@ -48,7 +60,7 @@ class LofiBackendIntegrationTest {
         );
         IngestRequest request = new IngestRequest(BASE_COMMIT, metrics);
 
-        ResponseEntity<Void> response = restTemplate.postForEntity("/lofi/ingest", request, Void.class);
+        ResponseEntity<Void> response = restTemplate.exchange("/lofi/ingest", HttpMethod.POST, authedIngest(request), Void.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }
@@ -63,7 +75,7 @@ class LofiBackendIntegrationTest {
         );
         IngestRequest request = new IngestRequest(HEAD_COMMIT, metrics);
 
-        ResponseEntity<Void> response = restTemplate.postForEntity("/lofi/ingest", request, Void.class);
+        ResponseEntity<Void> response = restTemplate.exchange("/lofi/ingest", HttpMethod.POST, authedIngest(request), Void.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }
@@ -125,9 +137,46 @@ class LofiBackendIntegrationTest {
                 new MethodMetric("TestService", "process", 10_000_000L, Instant.now())
         ));
 
-        ResponseEntity<Map> response = restTemplate.postForEntity("/lofi/ingest", request, Map.class);
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/lofi/ingest", HttpMethod.POST, authedIngest(request), Map.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @Order(8)
+    void ingest_shouldReturn401_whenApiKeyMissing() {
+        IngestRequest request = new IngestRequest(BASE_COMMIT, List.of(
+                new MethodMetric("TestService", "process", 10_000_000L, Instant.now())
+        ));
+
+        ResponseEntity<Map> response = restTemplate.postForEntity("/lofi/ingest", request, Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    @Order(10)
+    void actuatorHealth_shouldReturn200_withoutApiKey() {
+        ResponseEntity<Map> response = restTemplate.getForEntity("/actuator/health", Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().get("status")).isEqualTo("UP");
+    }
+
+    @Test
+    @Order(9)
+    void ingest_shouldReturn401_whenApiKeyWrong() {
+        IngestRequest request = new IngestRequest(BASE_COMMIT, List.of(
+                new MethodMetric("TestService", "process", 10_000_000L, Instant.now())
+        ));
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(LofiAuthInterceptor.HEADER, "wrong-key");
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "/lofi/ingest", HttpMethod.POST, new HttpEntity<>(request, headers), Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @AfterAll

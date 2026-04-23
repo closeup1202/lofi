@@ -9,8 +9,9 @@ services:
       - lofi-data:/data
     environment:
       - LOFI_BACKEND_DB_PATH=/data/metrics.db
+      - LOFI_API_KEY=${LOFI_API_KEY:?LOFI_API_KEY is required}
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9292/lofi/commits"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:9292/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,6 +25,8 @@ services:
       - "4318:4318"
     volumes:
       - ./lofi-otel-exporter/collector-config-docker.yaml:/etc/otelcol/config.yaml
+    environment:
+      - LOFI_API_KEY=${LOFI_API_KEY:?LOFI_API_KEY is required}
     depends_on:
       lofi-backend:
         condition: service_healthy

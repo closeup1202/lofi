@@ -2,7 +2,7 @@ dependencies {
     api project(':lofi-core')
     implementation 'org.springframework.boot:spring-boot-starter-aop'
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
-    implementation 'org.xerial:sqlite-jdbc:3.45.3.0'
+    implementation "org.xerial:sqlite-jdbc:${sqliteJdbcVersion}"
     compileOnly 'org.springframework:spring-web'
     compileOnly 'org.springframework:spring-webmvc'
     compileOnly 'jakarta.servlet:jakarta.servlet-api'

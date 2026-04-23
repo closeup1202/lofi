@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: Build and Test
+    name: Build and Test (Java)
     runs-on: ubuntu-latest
 
     steps:
@@ -28,3 +28,24 @@ jobs:
 
       - name: Build and Test
         run: ./gradlew build --no-daemon
+
+  cli:
+    name: Test (CLI)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lofi-cli
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: lofi-cli/package-lock.json
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build

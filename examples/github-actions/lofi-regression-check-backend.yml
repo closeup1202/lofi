@@ -1,0 +1,50 @@
+# Regression check via lofi-backend (standalone REST server)
+#
+# Triggers on every PR. Compares the PR's HEAD commit against the merge base with main.
+# Fails the job (and the PR check) if any method exceeds the configured latency threshold.
+#
+# Required GitHub repository secrets:
+#   LOFI_BACKEND_URL  e.g. https://lofi.your-internal-domain.com
+#
+# Notes:
+#   - Read endpoints (/lofi, /lofi/{hash}, /lofi/diff) do not require an API key.
+#   - This workflow only consumes data; it does not ingest. Ingestion is done by your
+#     production/staging deploys via lofi-otelcol.
+
+name: lofi regression check (backend mode)
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  lofi-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # need full history to compute merge-base
+
+      - name: Resolve base / head commits
+        id: commits
+        run: |
+          BASE=$(git merge-base origin/${{ github.base_ref }} HEAD)
+          HEAD=$(git rev-parse HEAD)
+          echo "base=${BASE:0:40}" >> "$GITHUB_OUTPUT"
+          echo "head=${HEAD:0:40}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install lofi-cli
+        run: npm install -g @closeup1202/lofi-cli
+
+      - name: Run lofi check
+        run: |
+          lofi check ${{ steps.commits.outputs.base }}..${{ steps.commits.outputs.head }} \
+            --url "${{ secrets.LOFI_BACKEND_URL }}" \
+            --threshold-rate 0.2 \
+            --min-calls 30 \
+            --stat p95 \
+            --format md

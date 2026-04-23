@@ -6,8 +6,18 @@ spring:
     serialization:
       write-dates-as-timestamps: false
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
 lofi:
   backend:
     db-path: ${user.home}/.lofi/metrics.db
     regression-threshold: 0.2
     retention-commits: 50
+    api-key: ${LOFI_API_KEY:}

@@ -11,7 +11,7 @@ const program = new Command()
 program
     .name('lofi')
     .description('Method-level latency regressions between deploys')
-    .version('0.3.0')
+    .version('0.4.0')
     .addHelpText('after', `
 Common Options:
   --url <url>                Target URL (default: http://localhost:8080)

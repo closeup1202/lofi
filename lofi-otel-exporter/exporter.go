@@ -114,6 +114,7 @@ func (e *lofiExporter) send(ctx context.Context, commitHash string, metrics []me
 		return fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Lofi-Api-Key", e.config.APIKey)
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {

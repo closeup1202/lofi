@@ -7,12 +7,16 @@ plugins {
 
 allprojects {
     group = 'io.github.closeup1202'
-    version = '0.3.2'
+    version = '0.4.0'
 }
 
 subprojects {
     apply plugin: 'java-library'
     apply plugin: 'io.spring.dependency-management'
+
+    ext {
+        sqliteJdbcVersion = '3.49.1.0'
+    }
 
     java {
         sourceCompatibility = JavaVersion.VERSION_17
