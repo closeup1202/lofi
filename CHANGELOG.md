@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Docker Compose healthcheck** — `lofi-backend` healthcheck now hits the new `/actuator/health` endpoint instead of the non-existent `/lofi/commits` path.
+- **`lofi-backend` Docker image now builds on linux/arm64** — base image switched from `eclipse-temurin:17-jre-alpine` (no arm64 manifest) to `eclipse-temurin:17-jre-jammy`, which ships multi-arch (amd64 + arm64). Apple Silicon and arm64 server users no longer need `--platform=linux/amd64` overrides. `wget` is installed in the runtime image for the existing healthcheck command.
 
 ---
 
@@ -313,7 +314,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date       | Description                                      |
 |---------|------------|--------------------------------------------------|
-| 0.4.0   | 2026-04-23 | API-key auth on /lofi/ingest (breaking), /actuator/health, IngestRequest validation, GitHub Actions examples, CLI Vitest suite |
+| 0.4.0   | 2026-04-23 | API-key auth on /lofi/ingest (breaking), /actuator/health, IngestRequest validation, GitHub Actions examples, CLI Vitest suite, multi-arch Docker image |
 | 0.3.2   | 2026-04-20 | Snapshot returns aggregated stats, percentile formula unified, CI workflow, integration tests |
 | 0.3.1   | 2026-04-20 | Add spring-boot-configuration-processor for IDE property completion |
 | 0.3.0   | 2026-04-20 | Remove MetricStore god interface, MetricBuffer shutdown race fix, SQL deduplication |

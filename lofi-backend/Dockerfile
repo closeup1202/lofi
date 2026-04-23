@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17-jdk-alpine AS builder
+FROM eclipse-temurin:17-jdk-jammy AS builder
 WORKDIR /workspace
 
 COPY gradlew settings.gradle build.gradle ./
@@ -13,10 +13,12 @@ RUN mkdir -p lofi-collector lofi-actuator lofi-spring-boot-starter \
 
 RUN ./gradlew :lofi-backend:bootJar --no-daemon -q
 
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
-RUN mkdir -p /data
+RUN apt-get update && apt-get install -y --no-install-recommends wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /data
 
 COPY --from=builder /workspace/lofi-backend/build/libs/*.jar app.jar
 
