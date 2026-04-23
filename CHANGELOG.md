@@ -313,6 +313,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date       | Description                                      |
 |---------|------------|--------------------------------------------------|
+| 0.4.0   | 2026-04-23 | API-key auth on /lofi/ingest (breaking), /actuator/health, IngestRequest validation, GitHub Actions examples, CLI Vitest suite |
+| 0.3.2   | 2026-04-20 | Snapshot returns aggregated stats, percentile formula unified, CI workflow, integration tests |
 | 0.3.1   | 2026-04-20 | Add spring-boot-configuration-processor for IDE property completion |
 | 0.3.0   | 2026-04-20 | Remove MetricStore god interface, MetricBuffer shutdown race fix, SQL deduplication |
 | 0.2.4   | 2026-04-19 | 404 on missing snapshot, IngestableStore split, @EnableScheduling removed, DB-level percentile query |
@@ -333,6 +335,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## Upgrade Guide
+
+### From 0.3.x to 0.4.0 (breaking)
+
+**`/lofi/ingest` now requires an API key** (Backend mode only — Actuator mode users are unaffected).
+
+1. Generate a secret: `openssl rand -hex 32`
+2. Set it on `lofi-backend`: `export LOFI_API_KEY=<secret>` (read by `application.yml: api-key: ${LOFI_API_KEY:}`)
+3. Set the same value on every `lofi-otelcol` instance — add `api_key: ${env:LOFI_API_KEY}` under the `lofi:` exporter in `collector-config.yaml`
+4. Restart both services. No data migration required.
+
+`lofi-backend` now refuses to start without the key. Read endpoints (`GET /lofi`, `/lofi/{hash}`, `/lofi/diff`) remain unauthenticated. See README "Backend mode: `/lofi/ingest` endpoint" for the full table of behaviors.
 
 ### From 0.3.0 to 0.3.1
 
@@ -471,7 +484,9 @@ When contributing, please update this changelog:
 
 ---
 
-[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/closeup1202/lofi/compare/v0.3.2...v0.4.0
+[0.3.2]: https://github.com/closeup1202/lofi/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/closeup1202/lofi/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/closeup1202/lofi/compare/v0.2.4...v0.3.0
 [0.2.4]: https://github.com/closeup1202/lofi/compare/v0.2.3...v0.2.4
