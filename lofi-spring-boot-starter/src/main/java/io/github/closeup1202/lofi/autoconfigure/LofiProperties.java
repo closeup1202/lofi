@@ -9,6 +9,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.List;
+
 /**
  * Configuration properties for lofi, bound from the {@code lofi.*} namespace.
  *
@@ -27,6 +29,19 @@ import org.springframework.validation.annotation.Validated;
  *                            Must be between 0 and 1. Defaults to {@code 0.2}.
  * @param retentionCommits    number of recent deploys to retain in storage.
  *                            Older deploys are evicted automatically. Defaults to {@code 50}.
+ * @param excludePackages     fully-qualified package patterns to skip from instrumentation.
+ *                            Two forms are supported:
+ *                            <ul>
+ *                              <li>{@code com.acme.ops.*} — matches {@code com.acme.ops} itself and any
+ *                                  sub-package (respects package boundaries, so {@code com.acme.ops2}
+ *                                  is <em>not</em> matched).</li>
+ *                              <li>{@code com.acme.ops} — legacy prefix match via {@code startsWith}
+ *                                  (may match unrelated packages that share the prefix; prefer the
+ *                                  wildcard form unless you want prefix-matching of class names).</li>
+ *                            </ul>
+ *                            Useful for excluding self-monitoring/ops controllers that would
+ *                            otherwise inflate metric counts on each dashboard refresh.
+ *                            Defaults to an empty list (no exclusions beyond built-ins).
  * @param buffer              buffer settings controlling how metrics are batched before writing to storage
  */
 @Validated
@@ -43,6 +58,8 @@ public record LofiProperties(
 
         @Min(value = 1, message = "must be at least 1")
         @DefaultValue("50") int retentionCommits,
+
+        @DefaultValue({}) List<String> excludePackages,
 
         @Valid
         @DefaultValue Buffer buffer

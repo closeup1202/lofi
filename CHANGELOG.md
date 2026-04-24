@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.1] - 2026-04-25
+
+### Added
+- **`lofi.exclude-packages` configuration property** — list of fully-qualified package patterns whose beans are skipped by `LofiInterceptor`. Two forms are supported:
+  - `com.acme.ops.*` — matches `com.acme.ops` itself and any sub-package, respecting package boundaries (so `com.acme.ops2` is not matched).
+  - `com.acme.ops` — legacy prefix match via `startsWith` (may match unrelated packages sharing the prefix; prefer the wildcard form).
+
+  Useful for self-monitoring / ops dashboards whose classes would otherwise inflate metric counts on every refresh and drown out real application signal. Matched against the target bean's class name at interception time (pointcut remains broad, since AspectJ pointcut strings cannot be parameterised from `@ConfigurationProperties`). Defaults to an empty list (no additional exclusions beyond the built-in Spring-framework / proxy filters). Example:
+  ```yaml
+  lofi:
+    exclude-packages:
+      - com.acme.api.controller.admin.*
+      - com.acme.adaptor.ops.*
+  ```
+
+- **`exclude_packages` exporter setting for Backend mode** — the `lofi` OpenTelemetry exporter in `lofi-otelcol` now accepts a matching `exclude_packages` list with the same pattern semantics (`pkg.*` / legacy `pkg` / bare `*`). Spans whose parsed `className` matches any pattern are dropped before being sent to `lofi-backend`, keeping Backend-mode parity with the Actuator-mode property. Matchers are pre-compiled once at exporter construction so the span hot path stays allocation-free. Example:
+  ```yaml
+  exporters:
+    lofi:
+      backend_url: http://localhost:9292
+      api_key: ${env:LOFI_API_KEY}
+      exclude_packages:
+        - com.acme.api.controller.admin.*
+        - com.acme.adaptor.ops.*
+  ```
+
+### Changed
+- **`LofiInterceptor` constructor now takes `(MetricBuffer, List<String>)`** — downstream callers overriding the bean must pass the new `excludePackages` list (empty list to preserve previous behavior). All bundled autoconfiguration is wired automatically.
+
+---
+
 ## [0.4.0] - 2026-04-23
 
 ### Security (breaking)

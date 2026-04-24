@@ -11,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Proxy;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,7 +33,7 @@ class LofiInterceptorTest {
 
     @BeforeEach
     void setUp() {
-        interceptor = new LofiInterceptor(metricBuffer);
+        interceptor = new LofiInterceptor(metricBuffer, List.of());
         lenient().when(pjp.getTarget()).thenReturn(new SampleTarget());
         lenient().when(pjp.getSignature()).thenReturn(signature);
         lenient().when(signature.getName()).thenReturn("testMethod");
@@ -78,6 +79,64 @@ class LofiInterceptorTest {
         verify(metricBuffer).add(argThat(metric ->
                 metric.methodName().equals("testMethod")
         ));
+    }
+
+    @Test
+    void shouldNotRecordMetricWhenClassMatchesExcludedPackage() throws Throwable {
+        // SampleTarget 의 FQCN prefix 로 제외 지정 → 기록되면 안 된다.
+        LofiInterceptor excluding = new LofiInterceptor(
+                metricBuffer,
+                List.of(SampleTarget.class.getPackageName())
+        );
+        given(pjp.proceed()).willReturn("ok");
+
+        excluding.measure(pjp);
+
+        verify(metricBuffer, never()).add(any(MethodMetric.class));
+    }
+
+    @Test
+    void shouldRecordMetricWhenClassDoesNotMatchExcludedPackage() throws Throwable {
+        LofiInterceptor excluding = new LofiInterceptor(
+                metricBuffer,
+                List.of("com.unrelated.other")
+        );
+        given(pjp.proceed()).willReturn("ok");
+
+        excluding.measure(pjp);
+
+        verify(metricBuffer, times(1)).add(any(MethodMetric.class));
+    }
+
+    @Test
+    void shouldNotRecordMetricWhenClassMatchesWildcardPackage() throws Throwable {
+        // "pkg.*" 는 pkg 와 그 하위 전체를 제외한다.
+        LofiInterceptor excluding = new LofiInterceptor(
+                metricBuffer,
+                List.of(SampleTarget.class.getPackageName() + ".*")
+        );
+        given(pjp.proceed()).willReturn("ok");
+
+        excluding.measure(pjp);
+
+        verify(metricBuffer, never()).add(any(MethodMetric.class));
+    }
+
+    @Test
+    void shouldRecordMetricWhenWildcardBaseIsNotPackageBoundary() throws Throwable {
+        // "io.github.closeup1202.lofi.collector.intercept.*" 는
+        // "io.github.closeup1202.lofi.collector.interceptor.*" 와 경계가 달라 매치되면 안 된다.
+        String pkg = SampleTarget.class.getPackageName();
+        String almost = pkg.substring(0, pkg.length() - 2) + ".*";
+        LofiInterceptor excluding = new LofiInterceptor(
+                metricBuffer,
+                List.of(almost)
+        );
+        given(pjp.proceed()).willReturn("ok");
+
+        excluding.measure(pjp);
+
+        verify(metricBuffer, times(1)).add(any(MethodMetric.class));
     }
 
     @Test

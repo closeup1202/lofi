@@ -5,6 +5,7 @@ import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,7 +32,7 @@ class LofiPropertiesTest {
     @Test
     void shouldRejectInvalidStoreType() {
         Set<ConstraintViolation<LofiProperties>> violations =
-                validate(new LofiProperties("commit", "invalid", 0.2, 50, defaultBuffer()));
+                validate(new LofiProperties("commit", "invalid", 0.2, 50, List.of(), defaultBuffer()));
 
         assertThat(violations).isNotEmpty();
         assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("storeType"));
@@ -39,12 +40,12 @@ class LofiPropertiesTest {
 
     @Test
     void shouldAcceptSqliteStoreType() {
-        assertThat(validate(new LofiProperties("commit", "sqlite", 0.2, 50, defaultBuffer()))).isEmpty();
+        assertThat(validate(new LofiProperties("commit", "sqlite", 0.2, 50, List.of(), defaultBuffer()))).isEmpty();
     }
 
     @Test
     void shouldAcceptInMemoryStoreType() {
-        assertThat(validate(new LofiProperties("commit", "in-memory", 0.2, 50, defaultBuffer()))).isEmpty();
+        assertThat(validate(new LofiProperties("commit", "in-memory", 0.2, 50, List.of(), defaultBuffer()))).isEmpty();
     }
 
     // ── regressionThreshold ───────────────────────────────────────────────────
@@ -52,7 +53,7 @@ class LofiPropertiesTest {
     @Test
     void shouldRejectNegativeRegressionThreshold() {
         Set<ConstraintViolation<LofiProperties>> violations =
-                validate(new LofiProperties("commit", "sqlite", -0.1, 50, defaultBuffer()));
+                validate(new LofiProperties("commit", "sqlite", -0.1, 50, List.of(), defaultBuffer()));
 
         assertThat(violations).isNotEmpty();
         assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("regressionThreshold"));
@@ -61,7 +62,7 @@ class LofiPropertiesTest {
     @Test
     void shouldRejectRegressionThresholdAboveOne() {
         Set<ConstraintViolation<LofiProperties>> violations =
-                validate(new LofiProperties("commit", "sqlite", 1.1, 50, defaultBuffer()));
+                validate(new LofiProperties("commit", "sqlite", 1.1, 50, List.of(), defaultBuffer()));
 
         assertThat(violations).isNotEmpty();
         assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("regressionThreshold"));
@@ -69,8 +70,8 @@ class LofiPropertiesTest {
 
     @Test
     void shouldAcceptBoundaryRegressionThresholds() {
-        assertThat(validate(new LofiProperties("commit", "sqlite", 0.0, 50, defaultBuffer()))).isEmpty();
-        assertThat(validate(new LofiProperties("commit", "sqlite", 1.0, 50, defaultBuffer()))).isEmpty();
+        assertThat(validate(new LofiProperties("commit", "sqlite", 0.0, 50, List.of(), defaultBuffer()))).isEmpty();
+        assertThat(validate(new LofiProperties("commit", "sqlite", 1.0, 50, List.of(), defaultBuffer()))).isEmpty();
     }
 
     // ── retentionCommits ──────────────────────────────────────────────────────
@@ -78,7 +79,7 @@ class LofiPropertiesTest {
     @Test
     void shouldRejectZeroRetentionCommits() {
         Set<ConstraintViolation<LofiProperties>> violations =
-                validate(new LofiProperties("commit", "sqlite", 0.2, 0, defaultBuffer()));
+                validate(new LofiProperties("commit", "sqlite", 0.2, 0, List.of(), defaultBuffer()));
 
         assertThat(violations).isNotEmpty();
         assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("retentionCommits"));
@@ -87,7 +88,7 @@ class LofiPropertiesTest {
     @Test
     void shouldRejectNegativeRetentionCommits() {
         Set<ConstraintViolation<LofiProperties>> violations =
-                validate(new LofiProperties("commit", "sqlite", 0.2, -1, defaultBuffer()));
+                validate(new LofiProperties("commit", "sqlite", 0.2, -1, List.of(), defaultBuffer()));
 
         assertThat(violations).isNotEmpty();
         assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("retentionCommits"));
@@ -98,7 +99,7 @@ class LofiPropertiesTest {
     @Test
     void shouldReportAllViolationsAtOnce() {
         Set<ConstraintViolation<LofiProperties>> violations =
-                validate(new LofiProperties("commit", "invalid", -0.1, 0, defaultBuffer()));
+                validate(new LofiProperties("commit", "invalid", -0.1, 0, List.of(), defaultBuffer()));
 
         assertThat(violations).hasSizeGreaterThanOrEqualTo(3);
         assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("storeType"));

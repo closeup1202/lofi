@@ -20,9 +20,68 @@ var commitHashAttrs = []string{
 }
 
 type lofiExporter struct {
-	config     *Config
-	httpClient *http.Client
-	logger     *zap.Logger
+	config          *Config
+	httpClient      *http.Client
+	logger          *zap.Logger
+	excludeMatchers []packageMatcher
+}
+
+// packageMatcher is a pre-parsed form of one lofi.exclude_packages entry.
+// We compile these once at construction so ConsumeTraces stays allocation-free
+// on the span hot path.
+type packageMatcher struct {
+	raw         string
+	matchAll    bool   // set when pattern == "*"
+	wildcardBase string // non-empty when pattern ends with ".*"; base = pattern without trailing ".*"
+	prefix      string // non-empty when pattern has no wildcard (legacy HasPrefix)
+}
+
+func (m packageMatcher) matches(className string) bool {
+	switch {
+	case m.matchAll:
+		return true
+	case m.wildcardBase != "":
+		return className == m.wildcardBase || strings.HasPrefix(className, m.wildcardBase+".")
+	case m.prefix != "":
+		return strings.HasPrefix(className, m.prefix)
+	default:
+		return false
+	}
+}
+
+func compileMatchers(patterns []string) []packageMatcher {
+	if len(patterns) == 0 {
+		return nil
+	}
+	out := make([]packageMatcher, 0, len(patterns))
+	for _, raw := range patterns {
+		p := strings.TrimSpace(raw)
+		if p == "" {
+			continue
+		}
+		switch {
+		case p == "*":
+			out = append(out, packageMatcher{raw: raw, matchAll: true})
+		case strings.HasSuffix(p, ".*"):
+			base := strings.TrimSuffix(p, ".*")
+			if base == "" {
+				continue
+			}
+			out = append(out, packageMatcher{raw: raw, wildcardBase: base})
+		default:
+			out = append(out, packageMatcher{raw: raw, prefix: p})
+		}
+	}
+	return out
+}
+
+func isExcluded(matchers []packageMatcher, className string) bool {
+	for i := range matchers {
+		if matchers[i].matches(className) {
+			return true
+		}
+	}
+	return false
 }
 
 // methodMetric mirrors lofi-backend's MethodMetric domain object.
@@ -41,9 +100,10 @@ type ingestRequest struct {
 
 func newLofiExporter(cfg *Config, logger *zap.Logger) *lofiExporter {
 	return &lofiExporter{
-		config:     cfg,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
-		logger:     logger,
+		config:          cfg,
+		httpClient:      &http.Client{Timeout: 10 * time.Second},
+		logger:          logger,
+		excludeMatchers: compileMatchers(cfg.ExcludePackages),
 	}
 }
 
@@ -76,6 +136,13 @@ func (e *lofiExporter) ConsumeTraces(ctx context.Context, td ptrace.Traces) erro
 
 				className, methodName := parseSpanName(span.Name())
 				if className == "" || methodName == "" {
+					continue
+				}
+
+				// User-configured exclusion. Mirrors the Actuator-mode
+				// `lofi.exclude-packages` behavior so self-monitoring/ops
+				// endpoints don't inflate metric counts in Backend mode either.
+				if isExcluded(e.excludeMatchers, className) {
 					continue
 				}
 

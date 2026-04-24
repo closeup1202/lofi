@@ -11,6 +11,20 @@ type Config struct {
 	// APIKey is sent as the X-Lofi-Api-Key header on every ingest request.
 	// Required by lofi-backend >= 0.4.0.
 	APIKey string `mapstructure:"api_key"`
+
+	// ExcludePackages lists fully-qualified package patterns whose spans should be
+	// dropped before ingestion. Matched against the className parsed from each
+	// span name.
+	//
+	// Two forms are supported — semantics mirror the Actuator-mode
+	// `lofi.exclude-packages` property:
+	//   - "com.foo.*" — matches "com.foo" itself and any sub-package,
+	//                   respecting package boundaries (so "com.foobar" is NOT matched).
+	//   - "com.foo"   — legacy prefix match via HasPrefix.
+	//   - "*"         — matches everything.
+	//
+	// Defaults to an empty list (no exclusions).
+	ExcludePackages []string `mapstructure:"exclude_packages"`
 }
 
 func (c *Config) Validate() error {

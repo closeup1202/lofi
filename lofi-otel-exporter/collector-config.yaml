@@ -18,6 +18,14 @@ exporters:
   lofi:
     backend_url: http://localhost:9292
     api_key: ${env:LOFI_API_KEY}
+    # Optional — drop spans by parsed className before ingestion.
+    # Mirrors the Actuator-mode `lofi.exclude-packages` property:
+    #   - "pkg.*" matches pkg and its sub-packages (respects boundaries)
+    #   - "pkg"   is a legacy startsWith match
+    #   - "*"     drops everything (useful for smoke tests only)
+    # exclude_packages:
+    #   - com.acme.api.controller.admin.*
+    #   - com.acme.adaptor.ops.*
 
 service:
   telemetry:

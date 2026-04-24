@@ -404,8 +404,9 @@ The following are automatically excluded to avoid double-counting or proxy confl
 - Jakarta Servlet filters and Spring MVC interceptors
 - AspectJ aspects (`@Aspect`)
 - JDK dynamic proxies — Spring Data JPA repositories appear as `jdk.proxy2.$Proxy*` in nested-proxy chains, so they are skipped; their execution time is already captured through the enclosing service call
+- User-defined package patterns via [`lofi.exclude-packages`](#actuator-mode-applicationyml) — typically self-monitoring / ops endpoints
 
-**Backend mode** — the OpenTelemetry Java Agent instruments the JVM at the bytecode level. Spans are exported to `lofi-otelcol`, which extracts span duration and commit hash (`deployment.commit.hash` resource attribute) and forwards them to `lofi-backend`.
+**Backend mode** — the OpenTelemetry Java Agent instruments the JVM at the bytecode level. Spans are exported to `lofi-otelcol`, which extracts span duration and commit hash (`deployment.commit.hash` resource attribute) and forwards them to `lofi-backend`. Optional [`exclude_packages`](#exporter-side-exclusion-collector-config) on the exporter side drops unwanted spans before ingestion.
 
 In both modes, collected data is stored locally in SQLite. No data leaves your environment.
 
@@ -491,11 +492,16 @@ lofi:
   store-type: sqlite              # sqlite (default) or in-memory
   regression-threshold: 0.2       # threshold for regression detection (default: 0.2 = 20%)
   retention-commits: 50           # number of recent deploys to retain (default: 50)
+  exclude-packages:               # package patterns to skip from instrumentation (default: empty)
+    - com.acme.api.controller.admin.*   # "pkg.*"  — matches pkg and any sub-package (boundary-respecting)
+    - com.acme.adaptor.ops              # "pkg"    — legacy startsWith match
   buffer:
     flush-threshold: 100          # number of metrics to batch before flushing (default: 100)
     flush-delay-ms: 5000          # periodic flush interval in ms (default: 5000)
     queue-capacity: 1000          # max buffer queue capacity (default: 1000)
 ```
+
+> **`exclude-packages`** is useful for self-monitoring / ops endpoints whose classes would otherwise inflate metric counts on every dashboard refresh and drown out real application signal. Prefer the `pkg.*` form — it respects package boundaries (`com.acme.ops` and its sub-packages match, but `com.acme.ops2` does not). The bare-prefix form remains available for legacy use.
 
 ### Backend mode (environment variables)
 
@@ -504,6 +510,25 @@ lofi:
 | `LOFI_BACKEND_DB_PATH` | `/data/metrics.db` | SQLite database path |
 | `LOFI_BACKEND_REGRESSION_THRESHOLD` | `0.2` | Regression detection threshold (20%) |
 | `LOFI_BACKEND_RETENTION_COMMITS` | `50` | Number of recent deploys to retain |
+
+#### Exporter-side exclusion (Collector config)
+
+The `lofi` OpenTelemetry exporter in `lofi-otelcol` accepts an `exclude_packages`
+setting that mirrors the Actuator-mode `lofi.exclude-packages` property. Spans
+whose parsed `className` matches any pattern are dropped **before** being sent
+to `lofi-backend`, so self-monitoring / ops endpoints don't inflate metric
+counts in Backend mode either.
+
+```yaml
+# collector-config.yaml
+exporters:
+  lofi:
+    backend_url: http://localhost:9292
+    api_key: ${env:LOFI_API_KEY}
+    exclude_packages:
+      - com.acme.api.controller.admin.*   # "pkg.*" — matches pkg and sub-packages
+      - com.acme.adaptor.ops              # "pkg"   — legacy startsWith match
+```
 
 ---
 

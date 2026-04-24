@@ -90,8 +90,8 @@ public class LofiAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public LofiInterceptor lofiInterceptor(MetricBuffer metricBuffer) {
-        return new LofiInterceptor(metricBuffer);
+    public LofiInterceptor lofiInterceptor(MetricBuffer metricBuffer, LofiProperties properties) {
+        return new LofiInterceptor(metricBuffer, properties.excludePackages());
     }
 
     @Bean
