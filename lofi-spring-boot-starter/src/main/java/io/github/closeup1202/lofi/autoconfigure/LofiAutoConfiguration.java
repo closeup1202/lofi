@@ -23,7 +23,10 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.file.Path;
 
@@ -46,8 +49,27 @@ public class LofiAutoConfiguration {
         Path dbPath = Path.of(System.getProperty("user.home"), ".lofi", "metrics.db");
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
         dataSource.setDriverClassName("org.sqlite.JDBC");
-        dataSource.setUrl("jdbc:sqlite:" + dbPath.toAbsolutePath());
+        // WAL allows readers to proceed concurrently with the single writer;
+        // busy_timeout (ms) tells SQLite to wait/retry instead of immediately
+        // throwing SQLITE_BUSY when the lock is contended (e.g. lofi-flush daemon
+        // racing with an overflow flush from a request thread).
+        dataSource.setUrl("jdbc:sqlite:" + dbPath.toAbsolutePath() + "?journal_mode=WAL&busy_timeout=5000");
         return new JdbcTemplate(dataSource);
+    }
+
+    /**
+     * Lofi-private TransactionTemplate so {@link SqliteMetricStore#saveAll} can wrap each
+     * batch in a single SQLite transaction (one fsync per flush instead of per row).
+     * Bound to the lofi JdbcTemplate's DataSource and never registered as a primary
+     * transaction manager, so it does not participate in the application's @Transactional
+     * boundaries.
+     */
+    @Bean
+    @ConditionalOnMissingBean(name = "lofiTransactionTemplate")
+    @ConditionalOnProperty(name = "lofi.store-type", havingValue = "sqlite", matchIfMissing = true)
+    public TransactionTemplate lofiTransactionTemplate(@Qualifier("lofiJdbcTemplate") JdbcTemplate lofiJdbcTemplate) {
+        PlatformTransactionManager tm = new DataSourceTransactionManager(lofiJdbcTemplate.getDataSource());
+        return new TransactionTemplate(tm);
     }
 
     @Bean
@@ -66,8 +88,12 @@ public class LofiAutoConfiguration {
     @ConditionalOnMissingBean({ReadableMetricStore.class, WritableMetricStore.class})
     @ConditionalOnProperty(name = "lofi.store-type", havingValue = "sqlite", matchIfMissing = true)
     @DependsOn("lofiDatabaseInitializer")
-    public SqliteMetricStore metricStore(@Qualifier("lofiJdbcTemplate") JdbcTemplate lofiJdbcTemplate, DeployContext deployContext) {
-        return new SqliteMetricStore(lofiJdbcTemplate, deployContext);
+    public SqliteMetricStore metricStore(
+            @Qualifier("lofiJdbcTemplate") JdbcTemplate lofiJdbcTemplate,
+            DeployContext deployContext,
+            @Qualifier("lofiTransactionTemplate") TransactionTemplate lofiTransactionTemplate
+    ) {
+        return new SqliteMetricStore(lofiJdbcTemplate, deployContext, lofiTransactionTemplate);
     }
 
     @Bean

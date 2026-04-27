@@ -12,6 +12,6 @@ public class LofiCommandService {
     }
 
     public void ingest(IngestRequest request) {
-        ingestableStore.ingest(request.commitHash(), request.metrics());
+        ingestableStore.ingest(request.commitHash(), request.toDomainMetrics());
     }
 }

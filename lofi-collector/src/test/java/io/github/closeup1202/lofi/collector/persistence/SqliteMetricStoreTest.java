@@ -6,9 +6,13 @@ import io.github.closeup1202.lofi.core.domain.MethodStats;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import javax.sql.DataSource;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,6 +21,7 @@ import static org.assertj.core.api.Assertions.within;
 class SqliteMetricStoreTest {
 
     private JdbcTemplate jdbcTemplate;
+    private TransactionTemplate transactionTemplate;
 
     @BeforeEach
     void setUp() {
@@ -24,6 +29,7 @@ class SqliteMetricStoreTest {
         ds.setDriverClassName("org.sqlite.JDBC");
         ds.setUrl("jdbc:sqlite::memory:");
         jdbcTemplate = new JdbcTemplate(ds);
+        transactionTemplate = new TransactionTemplate(new DataSourceTransactionManager((DataSource) ds));
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS method_metric (
                     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,11 +47,11 @@ class SqliteMetricStoreTest {
     }
 
     private SqliteMetricStore storeFor(String commitHash) {
-        return new SqliteMetricStore(jdbcTemplate, new DeployContext(commitHash));
+        return new SqliteMetricStore(jdbcTemplate, new DeployContext(commitHash), transactionTemplate);
     }
 
     private void save(String commitHash, String className, String methodName, long elapsedNs) {
-        storeFor(commitHash).save(new MethodMetric(className, methodName, elapsedNs, Instant.now()));
+        storeFor(commitHash).saveAll(List.of(new MethodMetric(className, methodName, elapsedNs, Instant.now())));
     }
 
     @Test

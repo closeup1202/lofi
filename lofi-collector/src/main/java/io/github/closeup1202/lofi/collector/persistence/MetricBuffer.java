@@ -68,24 +68,45 @@ public class MetricBuffer implements DisposableBean {
      * @param metric the metric to buffer
      */
     public void add(MethodMetric metric) {
-        boolean offered = queue.offer(metric);
-        if (!offered) {
-            flush();
-            boolean retried = queue.offer(metric);
-            if (!retried) {
-                // Queue is still full after flush — evict the oldest metric and insert the new one
-                // so that recent measurements always take priority over stale ones.
-                queue.poll();
-                queue.offer(metric);
-                log.warn("[lofi] Queue full after flush — oldest metric evicted to make room for: {}", metric.signature());
-            }
+        if (queue.offer(metric)) {
+            maybeThresholdFlush();
+            return;
         }
-        if (queue.size() >= flushThreshold && flushing.compareAndSet(false, true)) {
-            try {
-                flush();
-            } finally {
-                flushing.set(false);
-            }
+        // Queue full — coalesce flush attempts through the same CAS gate as the threshold path,
+        // so producers, the scheduler, and overflow handling cannot stack concurrent flushes
+        // (every flush ultimately calls metricStore.saveAll, which serialises against SQLite's
+        // single-writer lock).
+        guardedFlush();
+        if (queue.offer(metric)) {
+            maybeThresholdFlush();
+            return;
+        }
+        // Still full after the flush attempt — another producer refilled the slot, or the
+        // flush itself was skipped because another thread held the gate. Evict the oldest
+        // metric and try once more; if that still fails, drop the incoming metric explicitly
+        // rather than logging a misleading "evicted" message.
+        queue.poll();
+        if (queue.offer(metric)) {
+            log.warn("[lofi] Queue full after flush — oldest metric evicted to make room for: {}", metric.signature());
+        } else {
+            log.warn("[lofi] Queue full and contended — dropping metric: {}", metric.signature());
+        }
+    }
+
+    private void maybeThresholdFlush() {
+        if (queue.size() >= flushThreshold) {
+            guardedFlush();
+        }
+    }
+
+    private void guardedFlush() {
+        if (!flushing.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            flush();
+        } finally {
+            flushing.set(false);
         }
     }
 
@@ -102,7 +123,7 @@ public class MetricBuffer implements DisposableBean {
 
     private void scheduledFlush() {
         try {
-            flush();
+            guardedFlush();
         } catch (Exception e) {
             log.warn("[lofi] Scheduled flush failed: {}", e.getMessage());
         }

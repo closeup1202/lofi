@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.2] - 2026-04-27
+
+### Added
+- **`MethodMetricRequest` ingest DTO** (`lofi-backend`) — `IngestRequest.metrics` is now `List<MethodMetricRequest>` with per-element `@Valid` cascade. Each metric is validated at the API boundary: `className`/`methodName` are `@NotBlank` and length-capped (512 / 256), `elapsedNs` is `@PositiveOrZero`, and `recordedAt` is `@NotNull`. Invalid elements produce `400 Bad Request` with a per-field message (e.g. `metrics[3].className: must not be blank`) instead of being persisted as-is. The `lofi-core` domain record stays dependency-free.
+- **`/lofi/ingest` request now wrapped in a single SQLite transaction** — `SqliteWritableMetricStore.ingest` runs the batch insert and any retention eviction inside one `TransactionTemplate.executeWithoutResult` boundary, so an ingest causes one fsync instead of one per row.
+- **`SqliteMetricStore.saveAll` now wrapped in a single SQLite transaction** (`lofi-collector`) — same rationale: each `MetricBuffer` flush is one fsync instead of N. Auto-configured `lofiTransactionTemplate` bean (`lofi-spring-boot-starter`) bound to the lofi-private `DriverManagerDataSource`, so it does not participate in the application's `@Transactional` boundaries.
+- **`BackendDatabaseInitializer` now purges retention on startup** — mirrors the collector-side `LofiDatabaseInitializer` so backend instances do not carry over commits beyond `lofi.backend.retention-commits` between restarts.
+
+### Changed
+- **SQLite JDBC URL now sets `journal_mode=WAL&busy_timeout=5000`** in both `lofi-spring-boot-starter` and `lofi-backend`. WAL allows readers to proceed concurrently with the single SQLite writer; `busy_timeout` (ms) tells SQLite to wait/retry on a contended write lock instead of immediately throwing `SQLITE_BUSY` (e.g. `lofi-flush` daemon racing with an overflow flush from a request thread, or two ingest requests landing simultaneously).
+- **Backend retention eviction is now triggered only on new commits** — `SqliteWritableMetricStore.ingest` probes via `SELECT NOT EXISTS(...)` (uses `idx_commit_hash`, O(log n)) and runs `evictOldCommits()` only when a commit hash is observed for the first time. Repeated ingests for an existing commit no longer cause a full-table `DELETE NOT IN (subquery)` scan on the hot path. Also dropped the redundant `SELECT DISTINCT ... GROUP BY commit_hash` in the eviction SQL.
+- **`MetricBuffer` flush coalescing** — every flush path (overflow, threshold, scheduled) now goes through the same `flushing` CAS gate, so producers, the `lofi-flush` daemon, and overflow handling cannot stack concurrent `metricStore.saveAll` calls. The CAS gate already protected the threshold path; this extends it to the previously unguarded overflow and scheduled paths.
+- **`MetricBuffer` overflow eviction now reports drops accurately** — when the queue stays full after a flush attempt and the eviction `offer()` retry also fails (rare contention case), the metric is now logged as `dropping metric: <signature>` instead of the previous misleading `oldest metric evicted to make room` (which fired regardless of whether the second `offer` had succeeded, so a silently-dropped metric looked like a successful eviction in logs).
+- **`InMemoryMetricStore.saveAll` is now `synchronized` end-to-end** — registration and `addAll` were on different locks, opening a narrow window where retention rollover for a concurrent `saveAll` could evict the just-registered commit between `registerCommitIfAbsent` returning and `addAll` running. Now consistent with the other operations on this store.
+
+### Removed
+- **`WritableMetricStore.save(MethodMetric)`** — single-metric port method had no production callers (`MetricBuffer` only ever calls `saveAll`). Implementations (`SqliteMetricStore`, `InMemoryMetricStore`) and the default `saveAll` fallback are removed; both stores now batch directly. **Breaking** for downstream code that supplied its own `WritableMetricStore` bean and overrode `save(MethodMetric)` — implement `saveAll(List<MethodMetric>)` instead.
+
+### Constructor signature changes (breaking for custom bean overrides)
+- `SqliteMetricStore(JdbcTemplate, DeployContext, TransactionTemplate)` — added `TransactionTemplate`. The starter wires this automatically via the new `lofiTransactionTemplate` bean.
+- `SqliteWritableMetricStore(JdbcTemplate, TransactionTemplate, int retentionCommits)` — added `TransactionTemplate`.
+- `BackendDatabaseInitializer(JdbcTemplate, String dbPath, int retentionCommits)` — added `retentionCommits` for the new startup purge.
+
+### Notes
+- HTTP wire format is unchanged — `MethodMetricRequest` has the same field names and types as `MethodMetric` (`className`, `methodName`, `elapsedNs`, `recordedAt`), so existing `lofi-otel-exporter` and other ingest clients require no changes.
+- `lofi-cli` (`@closeup1202/lofi-cli`) version remains at **0.4.0**: read-only CLI surface (`commits` / `snapshot` / `diff`) is unaffected by these backend changes.
+
+---
+
 ## [0.4.1] - 2026-04-25
 
 ### Added
@@ -345,6 +374,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date       | Description                                      |
 |---------|------------|--------------------------------------------------|
+| 0.4.2   | 2026-04-27 | Per-element ingest validation, single-fsync transactional batch flushes (collector + backend), SQLite WAL + busy_timeout, MetricBuffer flush coalescing + accurate drop logging, retention eviction only on new commits + startup purge in backend, removed dead `WritableMetricStore.save(MethodMetric)` |
+| 0.4.1   | 2026-04-25 | `lofi.exclude-packages` configuration property + matching `exclude_packages` exporter setting (Backend mode parity) |
 | 0.4.0   | 2026-04-23 | API-key auth on /lofi/ingest (breaking), /actuator/health, IngestRequest validation, GitHub Actions examples, CLI Vitest suite, multi-arch Docker image |
 | 0.3.2   | 2026-04-20 | Snapshot returns aggregated stats, percentile formula unified, CI workflow, integration tests |
 | 0.3.1   | 2026-04-20 | Add spring-boot-configuration-processor for IDE property completion |
@@ -516,7 +547,9 @@ When contributing, please update this changelog:
 
 ---
 
-[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/closeup1202/lofi/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/closeup1202/lofi/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/closeup1202/lofi/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/closeup1202/lofi/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/closeup1202/lofi/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/closeup1202/lofi/compare/v0.3.0...v0.3.1

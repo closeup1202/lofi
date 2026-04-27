@@ -1,8 +1,8 @@
 package io.github.closeup1202.lofi.backend;
 
 import io.github.closeup1202.lofi.backend.api.request.IngestRequest;
+import io.github.closeup1202.lofi.backend.api.request.MethodMetricRequest;
 import io.github.closeup1202.lofi.backend.api.security.LofiAuthInterceptor;
-import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -53,10 +53,10 @@ class LofiBackendIntegrationTest {
     @Test
     @Order(1)
     void ingest_shouldReturn201_forBaseCommit() {
-        List<MethodMetric> metrics = List.of(
-                new MethodMetric("TestService", "process", 10_000_000L, Instant.now()),
-                new MethodMetric("TestService", "process", 11_000_000L, Instant.now()),
-                new MethodMetric("TestService", "process", 12_000_000L, Instant.now())
+        List<MethodMetricRequest> metrics = List.of(
+                new MethodMetricRequest("TestService", "process", 10_000_000L, Instant.now()),
+                new MethodMetricRequest("TestService", "process", 11_000_000L, Instant.now()),
+                new MethodMetricRequest("TestService", "process", 12_000_000L, Instant.now())
         );
         IngestRequest request = new IngestRequest(BASE_COMMIT, metrics);
 
@@ -68,10 +68,10 @@ class LofiBackendIntegrationTest {
     @Test
     @Order(2)
     void ingest_shouldReturn201_forHeadCommitWithRegression() {
-        List<MethodMetric> metrics = List.of(
-                new MethodMetric("TestService", "process", 100_000_000L, Instant.now()),
-                new MethodMetric("TestService", "process", 110_000_000L, Instant.now()),
-                new MethodMetric("TestService", "process", 120_000_000L, Instant.now())
+        List<MethodMetricRequest> metrics = List.of(
+                new MethodMetricRequest("TestService", "process", 100_000_000L, Instant.now()),
+                new MethodMetricRequest("TestService", "process", 110_000_000L, Instant.now()),
+                new MethodMetricRequest("TestService", "process", 120_000_000L, Instant.now())
         );
         IngestRequest request = new IngestRequest(HEAD_COMMIT, metrics);
 
@@ -134,7 +134,7 @@ class LofiBackendIntegrationTest {
     @Order(7)
     void ingest_shouldReturn400_whenCommitHashIsBlank() {
         IngestRequest request = new IngestRequest("", List.of(
-                new MethodMetric("TestService", "process", 10_000_000L, Instant.now())
+                new MethodMetricRequest("TestService", "process", 10_000_000L, Instant.now())
         ));
 
         ResponseEntity<Map> response = restTemplate.exchange(
@@ -147,7 +147,7 @@ class LofiBackendIntegrationTest {
     @Order(8)
     void ingest_shouldReturn401_whenApiKeyMissing() {
         IngestRequest request = new IngestRequest(BASE_COMMIT, List.of(
-                new MethodMetric("TestService", "process", 10_000_000L, Instant.now())
+                new MethodMetricRequest("TestService", "process", 10_000_000L, Instant.now())
         ));
 
         ResponseEntity<Map> response = restTemplate.postForEntity("/lofi/ingest", request, Map.class);
@@ -168,7 +168,7 @@ class LofiBackendIntegrationTest {
     @Order(9)
     void ingest_shouldReturn401_whenApiKeyWrong() {
         IngestRequest request = new IngestRequest(BASE_COMMIT, List.of(
-                new MethodMetric("TestService", "process", 10_000_000L, Instant.now())
+                new MethodMetricRequest("TestService", "process", 10_000_000L, Instant.now())
         ));
         HttpHeaders headers = new HttpHeaders();
         headers.set(LofiAuthInterceptor.HEADER, "wrong-key");
@@ -182,5 +182,8 @@ class LofiBackendIntegrationTest {
     @AfterAll
     static void cleanup() {
         new File(DB_PATH).delete();
+        // WAL mode leaves -wal / -shm sidecar files; remove them so reruns start clean.
+        new File(DB_PATH + "-wal").delete();
+        new File(DB_PATH + "-shm").delete();
     }
 }

@@ -10,10 +10,12 @@ public class BackendDatabaseInitializer implements InitializingBean {
 
     private final JdbcTemplate jdbcTemplate;
     private final String dbPath;
+    private final int retentionCommits;
 
-    public BackendDatabaseInitializer(JdbcTemplate jdbcTemplate, String dbPath) {
+    public BackendDatabaseInitializer(JdbcTemplate jdbcTemplate, String dbPath, int retentionCommits) {
         this.jdbcTemplate = jdbcTemplate;
         this.dbPath = dbPath;
+        this.retentionCommits = retentionCommits;
     }
 
     @Override
@@ -22,6 +24,7 @@ public class BackendDatabaseInitializer implements InitializingBean {
         createTable();
         migrateElapsedMsToNs();
         createIndex();
+        purgeOldCommits();
     }
 
     private void createDirectory() {
@@ -67,5 +70,18 @@ public class BackendDatabaseInitializer implements InitializingBean {
                 CREATE INDEX IF NOT EXISTS idx_commit_method_elapsed
                 ON method_metric(commit_hash, class_name, method_name, elapsed_ns)
                 """);
+    }
+
+    private void purgeOldCommits() {
+        jdbcTemplate.update("""
+                DELETE FROM method_metric
+                WHERE commit_hash NOT IN (
+                    SELECT commit_hash
+                    FROM method_metric
+                    GROUP BY commit_hash
+                    ORDER BY MIN(recorded_at) DESC
+                    LIMIT ?
+                )
+                """, retentionCommits);
     }
 }

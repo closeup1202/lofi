@@ -29,8 +29,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleMethodArgumentNotValid(MethodArgumentNotValidException e) {
-        String message = e.getBindingResult().getFieldErrors().stream()
-                .map(err -> err.getField() + ": " + err.getDefaultMessage())
+        // getAllErrors() includes both field- and object-level errors, the latter being raised
+        // by @Valid cascade into nested collection elements (e.g. metrics[3].className).
+        String message = e.getBindingResult().getAllErrors().stream()
+                .map(err -> {
+                    if (err instanceof org.springframework.validation.FieldError fe) {
+                        return fe.getField() + ": " + fe.getDefaultMessage();
+                    }
+                    return err.getObjectName() + ": " + err.getDefaultMessage();
+                })
                 .reduce((a, b) -> a + ", " + b)
                 .orElse(e.getMessage());
         return ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), message);

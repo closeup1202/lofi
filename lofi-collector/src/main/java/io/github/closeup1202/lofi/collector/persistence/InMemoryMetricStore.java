@@ -37,14 +37,10 @@ public class InMemoryMetricStore implements ReadableMetricStore, WritableMetricS
     }
 
     @Override
-    public void save(MethodMetric metric) {
-        String commitHash = deployContext.commitHash();
-        CopyOnWriteArrayList<MethodMetric> list = registerCommitIfAbsent(commitHash);
-        list.add(metric);
-    }
-
-    @Override
-    public void saveAll(List<MethodMetric> metrics) {
+    public synchronized void saveAll(List<MethodMetric> metrics) {
+        // Synchronized end-to-end so the list returned by registerCommitIfAbsent cannot be
+        // evicted between registration and addAll (e.g. retention rolling over via a
+        // concurrent saveAll for a different commit).
         String commitHash = deployContext.commitHash();
         CopyOnWriteArrayList<MethodMetric> list = registerCommitIfAbsent(commitHash);
         list.addAll(metrics);

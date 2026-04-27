@@ -18,11 +18,14 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import javax.sql.DataSource;
 import java.io.File;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -58,27 +61,41 @@ class LofiDeployDiffIntegrationTest {
         }
 
         @Bean
+        public TransactionTemplate lofiTransactionTemplate(JdbcTemplate lofiJdbcTemplate) {
+            return new TransactionTemplate(new DataSourceTransactionManager((DataSource) lofiJdbcTemplate.getDataSource()));
+        }
+
+        @Bean
         @Primary
-        public TestMetricStore testMetricStore(JdbcTemplate lofiJdbcTemplate) {
-            return new TestMetricStore(lofiJdbcTemplate);
+        public TestMetricStore testMetricStore(JdbcTemplate lofiJdbcTemplate, TransactionTemplate lofiTransactionTemplate) {
+            return new TestMetricStore(lofiJdbcTemplate, lofiTransactionTemplate);
         }
 
         static class TestMetricStore implements ReadableMetricStore, WritableMetricStore {
             private final JdbcTemplate jdbcTemplate;
+            private final TransactionTemplate transactionTemplate;
 
-            TestMetricStore(JdbcTemplate jdbcTemplate) {
+            TestMetricStore(JdbcTemplate jdbcTemplate, TransactionTemplate transactionTemplate) {
                 this.jdbcTemplate = jdbcTemplate;
+                this.transactionTemplate = transactionTemplate;
             }
 
             private SqliteMetricStore storeFor(String commitHash) {
-                return new SqliteMetricStore(jdbcTemplate, new DeployContext(commitHash));
+                return new SqliteMetricStore(jdbcTemplate, new DeployContext(commitHash), transactionTemplate);
             }
 
             @Override
-            public void save(MethodMetric metric) {
-                jdbcTemplate.update(
-                        "INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ns, recorded_at) VALUES (?, ?, ?, ?, ?)",
-                        activeCommit.get(), metric.className(), metric.methodName(), metric.elapsedNs(), metric.recordedAt().toString()
+            public void saveAll(List<MethodMetric> metrics) {
+                // Route writes through the active test commit, regardless of which deploy
+                // context the production wiring would have used.
+                String commit = activeCommit.get();
+                transactionTemplate.executeWithoutResult(status ->
+                        jdbcTemplate.batchUpdate(
+                                "INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ns, recorded_at) VALUES (?, ?, ?, ?, ?)",
+                                metrics.stream()
+                                        .map(m -> new Object[]{commit, m.className(), m.methodName(), m.elapsedNs(), m.recordedAt().toString()})
+                                        .toList()
+                        )
                 );
             }
 
@@ -171,5 +188,8 @@ class LofiDeployDiffIntegrationTest {
     @AfterAll
     static void cleanup() {
         new File(DB_PATH).delete();
+        // WAL mode leaves -wal / -shm sidecar files; remove them so reruns start clean.
+        new File(DB_PATH + "-wal").delete();
+        new File(DB_PATH + "-shm").delete();
     }
 }

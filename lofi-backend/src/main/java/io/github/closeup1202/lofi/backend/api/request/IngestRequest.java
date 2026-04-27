@@ -1,6 +1,7 @@
 package io.github.closeup1202.lofi.backend.api.request;
 
 import io.github.closeup1202.lofi.core.domain.MethodMetric;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
@@ -15,6 +16,10 @@ public record IngestRequest(
 
         @NotEmpty
         @Size(max = 10_000, message = "must not exceed 10000 metrics per request")
-        List<MethodMetric> metrics
+        @Valid
+        List<MethodMetricRequest> metrics
 ) {
+    public List<MethodMetric> toDomainMetrics() {
+        return metrics.stream().map(MethodMetricRequest::toDomain).toList();
+    }
 }

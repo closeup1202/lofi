@@ -13,7 +13,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.sql.DataSource;
 
@@ -33,7 +36,11 @@ public class BackendConfig {
     public DataSource lofiDataSource() {
         DriverManagerDataSource ds = new DriverManagerDataSource();
         ds.setDriverClassName("org.sqlite.JDBC");
-        ds.setUrl("jdbc:sqlite:" + dbPath);
+        // WAL allows readers to proceed concurrently with the single writer;
+        // busy_timeout (ms) tells SQLite to wait/retry instead of immediately
+        // throwing SQLITE_BUSY when concurrent ingest requests contend for the
+        // write lock.
+        ds.setUrl("jdbc:sqlite:" + dbPath + "?journal_mode=WAL&busy_timeout=5000");
         return ds;
     }
 
@@ -43,8 +50,18 @@ public class BackendConfig {
     }
 
     @Bean
+    public PlatformTransactionManager lofiTransactionManager(DataSource lofiDataSource) {
+        return new DataSourceTransactionManager(lofiDataSource);
+    }
+
+    @Bean
+    public TransactionTemplate lofiTransactionTemplate(PlatformTransactionManager lofiTransactionManager) {
+        return new TransactionTemplate(lofiTransactionManager);
+    }
+
+    @Bean
     public BackendDatabaseInitializer backendDatabaseInitializer(JdbcTemplate lofiJdbcTemplate) {
-        return new BackendDatabaseInitializer(lofiJdbcTemplate, dbPath);
+        return new BackendDatabaseInitializer(lofiJdbcTemplate, dbPath, retentionCommits);
     }
 
     @Bean
@@ -55,8 +72,8 @@ public class BackendConfig {
 
     @Bean
     @DependsOn("backendDatabaseInitializer")
-    public IngestableStore ingestableStore(JdbcTemplate lofiJdbcTemplate) {
-        return new SqliteWritableMetricStore(lofiJdbcTemplate, retentionCommits);
+    public IngestableStore ingestableStore(JdbcTemplate lofiJdbcTemplate, TransactionTemplate lofiTransactionTemplate) {
+        return new SqliteWritableMetricStore(lofiJdbcTemplate, lofiTransactionTemplate, retentionCommits);
     }
 
     @Bean

@@ -9,6 +9,7 @@ import io.github.closeup1202.lofi.core.persistence.LofiSqlQueries;
 import io.github.closeup1202.lofi.core.port.ReadableMetricStore;
 import io.github.closeup1202.lofi.core.port.WritableMetricStore;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -26,34 +27,27 @@ public class SqliteMetricStore implements ReadableMetricStore, WritableMetricSto
 
     private final JdbcTemplate jdbcTemplate;
     private final DeployContext deployContext;
+    private final TransactionTemplate transactionTemplate;
 
-    public SqliteMetricStore(JdbcTemplate jdbcTemplate, DeployContext deployContext) {
+    public SqliteMetricStore(JdbcTemplate jdbcTemplate, DeployContext deployContext, TransactionTemplate transactionTemplate) {
         this.jdbcTemplate = jdbcTemplate;
         this.deployContext = deployContext;
-    }
-
-    @Override
-    public void save(MethodMetric metric) {
-        jdbcTemplate.update("""
-                        INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ns, recorded_at)
-                        VALUES (?, ?, ?, ?, ?)
-                        """,
-                deployContext.commitHash(),
-                metric.className(),
-                metric.methodName(),
-                metric.elapsedNs(),
-                metric.recordedAt().toString()
-        );
+        this.transactionTemplate = transactionTemplate;
     }
 
     @Override
     public void saveAll(List<MethodMetric> metrics) {
+        if (metrics.isEmpty()) return;
         String commitHash = deployContext.commitHash();
-        jdbcTemplate.batchUpdate(
-                "INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ns, recorded_at) VALUES (?, ?, ?, ?, ?)",
-                metrics.stream()
-                        .map(m -> new Object[]{commitHash, m.className(), m.methodName(), m.elapsedNs(), m.recordedAt().toString()})
-                        .toList()
+        // Wrap the batch in a single SQLite transaction so the underlying VFS performs
+        // one fsync for the whole batch instead of one per row (default auto-commit).
+        transactionTemplate.executeWithoutResult(status ->
+                jdbcTemplate.batchUpdate(
+                        "INSERT INTO method_metric (commit_hash, class_name, method_name, elapsed_ns, recorded_at) VALUES (?, ?, ?, ?, ?)",
+                        metrics.stream()
+                                .map(m -> new Object[]{commitHash, m.className(), m.methodName(), m.elapsedNs(), m.recordedAt().toString()})
+                                .toList()
+                )
         );
     }
 
