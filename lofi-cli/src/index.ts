@@ -7,7 +7,7 @@ import {OutputFormat, normalizeFormat, renderCheck, renderDiff, renderSnapshot} 
 import {LofiConnectionError, LofiNotFoundError, LofiUnexpectedError} from './error'
 import {kickoffAsyncRefresh, prepareUpdateBanner, shouldSkipUpdateCheck} from './update-check'
 
-const VERSION = '0.4.1'
+const VERSION = '0.4.2'
 
 const program = new Command()
 

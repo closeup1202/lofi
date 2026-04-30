@@ -25,7 +25,7 @@ export function formatMs(ms: number, withSign: boolean = false): string {
     } else {
         const min = Math.floor(abs / 60_000)
         const sec = Math.round((abs % 60_000) / 1000)
-        body = sec === 0 ? `${min}m` : `${min}m${sec}s`
+        body = sec === 0 ? `${min}m` : `${min}m ${sec}s`
     }
     return `${sign}${body}`
 }

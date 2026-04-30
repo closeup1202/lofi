@@ -129,7 +129,8 @@ describe('formatMs', () => {
 
     it('switches to minutes+seconds at 60000ms+', () => {
         expect(formatMs(60_000)).toBe('1m')
-        expect(formatMs(125_000)).toBe('2m5s')
+        expect(formatMs(125_000)).toBe('2m 5s')
+        expect(formatMs(129_000)).toBe('2m 9s')
         expect(formatMs(3_600_000)).toBe('60m')
     })
 

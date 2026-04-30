@@ -135,5 +135,5 @@ threshold was exceeded). It does not fire on every PR, only on regressions.
 
 **Pin the lofi-cli version** instead of `npm install -g`:
 ```yaml
-      - run: npm install -g @closeup1202/lofi-cli@0.4.1
+      - run: npm install -g @closeup1202/lofi-cli@0.4.2
 ```
