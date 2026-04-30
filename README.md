@@ -65,7 +65,7 @@ The CLI detects the mode automatically from the `--url` target — no extra flag
 **Gradle**
 
 ```groovy
-implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.4.2'
+implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.4.3'
 ```
 
 **Maven**
@@ -74,7 +74,7 @@ implementation 'io.github.closeup1202:lofi-spring-boot-starter:0.4.2'
 <dependency>
   <groupId>io.github.closeup1202</groupId>
   <artifactId>lofi-spring-boot-starter</artifactId>
-  <version>0.4.2</version>
+  <version>0.4.3</version>
 </dependency>
 ```
 

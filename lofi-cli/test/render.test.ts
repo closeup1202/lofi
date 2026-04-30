@@ -2,8 +2,10 @@ import {describe, expect, it} from 'vitest'
 import {
     applyFilters,
     exceedsThreshold,
+    formatMs,
     getStatMs,
     isRegressed,
+    normalizeFormat,
     shortSignature,
     thresholdLabel
 } from '../src/render'
@@ -109,6 +111,55 @@ describe('exceedsThreshold', () => {
         const d = diff({baseMs: 10, headMs: 11, deltaMs: 1, baseP95Ms: 10, headP95Ms: 30})
         expect(exceedsThreshold(d, {thresholdMs: 5, stat: 'avg'})).toBe(false)
         expect(exceedsThreshold(d, {thresholdMs: 5, stat: 'p95'})).toBe(true)
+    })
+})
+
+describe('formatMs', () => {
+    it('uses ms below 1 second', () => {
+        expect(formatMs(0)).toBe('0.00ms')
+        expect(formatMs(176.65)).toBe('176.65ms')
+        expect(formatMs(999.99)).toBe('999.99ms')
+    })
+
+    it('switches to seconds at 1000ms+', () => {
+        expect(formatMs(1000)).toBe('1.00s')
+        expect(formatMs(45057.72)).toBe('45.06s')
+        expect(formatMs(59999)).toBe('60.00s')
+    })
+
+    it('switches to minutes+seconds at 60000ms+', () => {
+        expect(formatMs(60_000)).toBe('1m')
+        expect(formatMs(125_000)).toBe('2m5s')
+        expect(formatMs(3_600_000)).toBe('60m')
+    })
+
+    it('preserves negative sign without withSign flag', () => {
+        expect(formatMs(-6.08)).toBe('-6.08ms')
+        expect(formatMs(-45057.72)).toBe('-45.06s')
+    })
+
+    it('adds + sign for positive values when withSign=true', () => {
+        expect(formatMs(45057.72, true)).toBe('+45.06s')
+        expect(formatMs(176.65, true)).toBe('+176.65ms')
+        expect(formatMs(0, true)).toBe('0.00ms')
+        expect(formatMs(-6.08, true)).toBe('-6.08ms')
+    })
+})
+
+describe('normalizeFormat', () => {
+    it('passes canonical names through', () => {
+        expect(normalizeFormat('table')).toBe('table')
+        expect(normalizeFormat('json')).toBe('json')
+        expect(normalizeFormat('markdown')).toBe('markdown')
+    })
+
+    it('accepts "md" as alias for "markdown"', () => {
+        expect(normalizeFormat('md')).toBe('markdown')
+    })
+
+    it('returns null for unknown values', () => {
+        expect(normalizeFormat('yaml')).toBeNull()
+        expect(normalizeFormat('')).toBeNull()
     })
 })
 

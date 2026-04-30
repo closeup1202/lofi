@@ -7,7 +7,7 @@ plugins {
 
 allprojects {
     group = 'io.github.closeup1202'
-    version = '0.4.2'
+    version = '0.4.3'
 }
 
 subprojects {
@@ -35,6 +35,10 @@ subprojects {
     dependencies {
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
     }
 
     tasks.withType(JavaCompile).tap {

@@ -1,13 +1,33 @@
 import chalk from 'chalk'
 import {DeploySnapshot, DiffResult, MethodDiff, MethodStats, StatType, ThresholdOptions} from './client'
 
-const DIFF_LINE = '─'.repeat(96)
-const SNAPSHOT_LINE = '─'.repeat(61)
-
 export type OutputFormat = 'table' | 'json' | 'markdown'
 
 export interface RenderOptions extends ThresholdOptions {
     format?: OutputFormat
+}
+
+export function normalizeFormat(value: string): OutputFormat | null {
+    const v = value === 'md' ? 'markdown' : value
+    return (v === 'table' || v === 'json' || v === 'markdown') ? v : null
+}
+
+// Format a millisecond value with an adaptive unit so very large numbers stay readable
+// in fixed-width columns: <1s → "ms", <1min → "s", ≥1min → "Xm Ys".
+export function formatMs(ms: number, withSign: boolean = false): string {
+    const sign = ms > 0 && withSign ? '+' : ms < 0 ? '-' : ''
+    const abs = Math.abs(ms)
+    let body: string
+    if (abs < 1000) {
+        body = `${abs.toFixed(2)}ms`
+    } else if (abs < 60_000) {
+        body = `${(abs / 1000).toFixed(2)}s`
+    } else {
+        const min = Math.floor(abs / 60_000)
+        const sec = Math.round((abs % 60_000) / 1000)
+        body = sec === 0 ? `${min}m` : `${min}m${sec}s`
+    }
+    return `${sign}${body}`
 }
 
 export function shortSignature(signature: string): string {
@@ -75,7 +95,7 @@ function renderCheckTable(result: DiffResult, options: RenderOptions): void {
     for (const d of exceeded) {
         const {base, head, delta} = getStatMs(d, options.stat)
         const rate = base > 0 ? ` (+${((delta / base) * 100).toFixed(1)}%)` : ''
-        console.error(chalk.red(`  ${shortSignature(d.signature)}  ${base.toFixed(2)}ms → ${head.toFixed(2)}ms  (+${delta.toFixed(2)}ms${rate})`))
+        console.error(chalk.red(`  ${shortSignature(d.signature)}  ${formatMs(base)} → ${formatMs(head)}  (${formatMs(delta, true)}${rate})`))
     }
     process.exit(1)
 }
@@ -127,7 +147,7 @@ function renderCheckMarkdown(result: DiffResult, options: RenderOptions): void {
             const {base, head, delta} = getStatMs(d, stat)
             const sig = shortSignature(d.signature)
             const change = base > 0 ? `+${((delta / base) * 100).toFixed(1)}%` : '—'
-            lines.push(`| ${sig} | ${base.toFixed(2)}ms | ${head.toFixed(2)}ms | +${delta.toFixed(2)}ms | ${change} | ${d.baseCount}→${d.headCount} |`)
+            lines.push(`| ${sig} | ${formatMs(base)} | ${formatMs(head)} | ${formatMs(delta, true)} | ${change} | ${d.baseCount}→${d.headCount} |`)
         }
     }
 
@@ -170,18 +190,23 @@ function renderDiffTable(result: DiffResult, options: RenderOptions): boolean | 
     console.log(chalk.gray(`Stat: ${statLabel}`) + (label ? chalk.gray(`  Threshold: ${label}`) : ''))
     if (options.minCalls !== undefined) console.log(chalk.gray(`Min calls: ${options.minCalls}`))
 
-    console.log(chalk.gray(DIFF_LINE))
+    // Method column sized to the longest signature in the dataset (floor at 'Method').
+    const sigWidth = Math.max('Method'.length, ...filtered.map(d => shortSignature(d.signature).length))
+    const lineWidth = sigWidth + 61  // body row width incl. arrow suffix
+    const line = '─'.repeat(lineWidth)
+
+    console.log(chalk.gray(line))
     console.log(
-        chalk.gray('  Method'.padEnd(44)) +
-        chalk.gray('Before'.padStart(10)) +
+        chalk.gray('  Method'.padEnd(sigWidth + 3)) +
+        chalk.gray('Before'.padStart(12)) +
         chalk.gray('     ') +
-        chalk.gray('After'.padStart(10)) +
+        chalk.gray('After'.padStart(12)) +
         chalk.gray('  ') +
-        chalk.gray('Delta'.padStart(10)) +
+        chalk.gray('Delta'.padStart(12)) +
         chalk.gray('  ') +
         chalk.gray('Calls'.padStart(11))
     )
-    console.log(chalk.gray(DIFF_LINE))
+    console.log(chalk.gray(line))
 
     const sortedDiffs = [...filtered].sort((a, b) => {
         const aS = getStatMs(a, stat)
@@ -191,10 +216,10 @@ function renderDiffTable(result: DiffResult, options: RenderOptions): boolean | 
 
     for (const d of sortedDiffs) {
         const {base, head, delta} = getStatMs(d, stat)
-        const signature = shortSignature(d.signature).padEnd(41)
-        const baseStr = `${base.toFixed(2)}ms`.padStart(10)
-        const headStr = `${head.toFixed(2)}ms`.padStart(10)
-        const deltaStr = `${delta > 0 ? '+' : ''}${delta.toFixed(2)}ms`.padStart(10)
+        const signature = shortSignature(d.signature).padEnd(sigWidth)
+        const baseStr = formatMs(base).padStart(12)
+        const headStr = formatMs(head).padStart(12)
+        const deltaStr = formatMs(delta, true).padStart(12)
         const callsStr = (d.baseCount > 0 || d.headCount > 0)
             ? `${d.baseCount}→${d.headCount}`.padStart(11)
             : ''.padStart(11)
@@ -212,7 +237,7 @@ function renderDiffTable(result: DiffResult, options: RenderOptions): boolean | 
         }
     }
 
-    console.log(chalk.gray(DIFF_LINE))
+    console.log(chalk.gray(line))
 
     const regressions = filtered.filter(d => isRegressed(d, stat, regressionThreshold))
     const exceededList = filtered.filter(d => exceedsThreshold(d, options))
@@ -313,10 +338,9 @@ function renderDiffMarkdown(result: DiffResult, options: RenderOptions): boolean
     for (const d of sortedDiffs) {
         const {base, head, delta} = getStatMs(d, stat)
         const sig = shortSignature(d.signature)
-        const deltaStr = `${delta > 0 ? '+' : ''}${delta.toFixed(2)}ms`
         const flag = exceedsThreshold(d, options) ? ' 🔥' : isRegressed(d, stat, result.regressionThreshold) ? ' ▲' : ''
         const calls = `${d.baseCount}→${d.headCount}`
-        lines.push(`| ${sig} | ${base.toFixed(2)}ms | ${head.toFixed(2)}ms | ${deltaStr}${flag} | ${calls} |`)
+        lines.push(`| ${sig} | ${formatMs(base)} | ${formatMs(head)} | ${formatMs(delta, true)}${flag} | ${calls} |`)
     }
 
     lines.push('')
@@ -349,36 +373,41 @@ export function renderDiff(result: DiffResult, options: RenderOptions = {}): boo
 
 // ─── renderSnapshot ───────────────────────────────────────────────────────────
 
-const SNAPSHOT_LINE_WIDE = '─'.repeat(80)
-
 export function renderSnapshot(snapshot: DeploySnapshot): void {
     const entries = Object.entries(snapshot.methods)
     const sorted = entries.sort((a, b) => b[1].avgMs - a[1].avgMs)
 
+    const sigWidth = Math.max('Method'.length, ...sorted.map(([sig]) => shortSignature(sig).length))
+    const lineWidth = sigWidth + 45  // 2 + sig + 1 + 11 + 1 + 11 + 1 + 11 + 1 + 6
+    const line = '─'.repeat(lineWidth)
+
     console.log()
     console.log(chalk.bold('Snapshot') + '  ' + chalk.gray(snapshot.commitHash))
-    console.log(chalk.gray(SNAPSHOT_LINE_WIDE))
+    console.log(chalk.gray(line))
     console.log(chalk.gray(`  Deployed at:     ${snapshot.deployedAt}`))
     console.log(chalk.gray(`  Methods tracked: ${entries.length}`))
 
     if (sorted.length > 0) {
         console.log()
         console.log(
-            chalk.gray('  Method'.padEnd(45)) +
-            chalk.gray('Avg'.padStart(9)) +
-            chalk.gray('P95'.padStart(9)) +
-            chalk.gray('P99'.padStart(9)) +
-            chalk.gray('Calls'.padStart(7))
+            chalk.gray('  Method'.padEnd(sigWidth + 3)) +
+            chalk.gray('Avg'.padStart(11)) +
+            chalk.gray(' ') +
+            chalk.gray('P95'.padStart(11)) +
+            chalk.gray(' ') +
+            chalk.gray('P99'.padStart(11)) +
+            chalk.gray(' ') +
+            chalk.gray('Calls'.padStart(6))
         )
-        console.log(chalk.gray(SNAPSHOT_LINE_WIDE))
+        console.log(chalk.gray(line))
 
         for (const [sig, stats] of sorted) {
             console.log(chalk.gray(
-                `  ${shortSignature(sig).padEnd(44)}` +
-                ` ${(stats.avgMs.toFixed(2) + 'ms').padStart(8)}` +
-                ` ${(stats.p95Ms.toFixed(2) + 'ms').padStart(8)}` +
-                ` ${(stats.p99Ms.toFixed(2) + 'ms').padStart(8)}` +
-                ` ${String(stats.count).padStart(5)}`
+                `  ${shortSignature(sig).padEnd(sigWidth)}` +
+                ` ${formatMs(stats.avgMs).padStart(11)}` +
+                ` ${formatMs(stats.p95Ms).padStart(11)}` +
+                ` ${formatMs(stats.p99Ms).padStart(11)}` +
+                ` ${String(stats.count).padStart(6)}`
             ))
         }
     }

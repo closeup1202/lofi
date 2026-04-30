@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.3] - 2026-04-30
+
+### Added
+- **`GET /lofi/version` endpoint** (`lofi-backend`) — returns `{appName, appVersion, retentionCommits, regressionThreshold}` so clients (CLI, exporter, ops dashboards) can diagnose policy mismatches between backend and clients without inspecting the deployed binary. Unauthenticated, mirroring the other read endpoints. Backed by Spring Boot's `BuildProperties` (build-info.properties is now generated via `springBoot { buildInfo() }` in `lofi-backend/build.gradle`).
+- **PR comment + optional notification steps in both example workflows** (`examples/github-actions/`) — the regression-check workflow now upserts a markdown latency-diff comment on the PR via `actions/github-script` (find by `<!-- lofi-regression-check -->` marker, update if present, create otherwise) so re-pushes do not pile up duplicate comments. Required permission: `pull-requests: write`. Two pre-written notification steps (Slack / generic webhook) are included **commented out**; users uncomment one block and add the matching repository secret. The notification fires only when the diff step exited non-zero (regression beyond threshold), not on every PR.
+- **`lofi-cli` once-per-day update notification** (`@closeup1202/lofi-cli`) — at most once every 24 hours the CLI checks `https://registry.npmjs.org/@closeup1202/lofi-cli/latest` in the background and, if a newer version is available, prints a single line at the end of the command output (after the actual results, never before): `lofi: update available 0.4.1 → 0.4.x  ·  npm install -g @closeup1202/lofi-cli  (set LOFI_NO_UPDATE_CHECK=1 to silence)`. Cache lives at `${XDG_CACHE_HOME:-$HOME/.cache}/lofi-cli/version-check.json`. **Auto-disabled** when stdout is not a TTY (piped / redirected output), when `CI` env is set (any GitHub Actions / GitLab CI / etc. run), and when `--format json` / `--format markdown` is in use (so machine-readable output never gets a stray banner line). **Manual opt-out**: pass `--no-update-check`, set `LOFI_NO_UPDATE_CHECK=1`, or set the cross-CLI `NO_UPDATE_NOTIFIER=1`. The HTTP fetch has a 3-second timeout and any failure is silently absorbed (with a stamped cache entry so the CLI doesn't retry-storm when offline).
+
+### Changed
+- **`lofi-cli` adaptive unit formatting** (`@closeup1202/lofi-cli` 0.4.1) — diff and snapshot tables, plus markdown PR-comment output, now render large millisecond values with the most appropriate unit: `<1s` stays `ms`, `1s ≤ x < 60s` → `s`, `≥ 60s` → `Xm Ys`. A 45-second regression now reads `45.06s` instead of `45057.72ms`. Numeric `--format json` output is unchanged (raw `*Ms` fields).
+- **`lofi-cli` dynamic Method-column width** — diff and snapshot tables size the Method column to the longest signature in the dataset (with a `'Method'` floor) instead of a hard-coded 41/44 chars. A signature longer than the previous fixed pad no longer pushes its row out of alignment with the rest of the table.
+- **`lofi-cli` `--format md` accepted as alias for `markdown`** — the existing example workflows passed `--format md`, which the CLI previously rejected with `Invalid format`. The alias is now resolved at parse time and produces the same output as `--format markdown`. Help text updated to `--format <table|json|markdown>` (with the `md` alias mentioned).
+
+### Fixed
+- **All Spring Boot module test suites now actually execute** (`build.gradle`) — `useJUnitPlatform()` was only configured on `lofi-integration-test`. Every other Java module (`lofi-core`, `lofi-collector`, `lofi-actuator`, `lofi-backend`, `lofi-spring-boot-starter`) had a passing `:test` task that silently discovered zero tests, because Gradle's default test runner doesn't pick up JUnit 5 annotations. Configured at the root `subprojects` level so all 73 existing JUnit 5 tests now run on every CI build.
+- **`SqliteMetricStoreTest` schema visibility** (`lofi-collector`) — the test used `jdbc:sqlite::memory:` together with `DriverManagerDataSource`, which opens a fresh connection per request. SQLite's `:memory:` databases are connection-private, so the schema created in `@BeforeEach` was invisible to the connection that ran `saveAll`, causing `no such table: method_metric` errors. The test now creates a per-test SQLite file under `@TempDir`, which is auto-cleaned by JUnit. (Surfaced by the `useJUnitPlatform()` fix above; the test file already existed but had never been executed.)
+
+### Notes
+- Library / `lofi-backend` artifacts: **0.4.2 → 0.4.3**.
+- `lofi-cli` (`@closeup1202/lofi-cli`) artifact: **0.4.0 → 0.4.1**.
+- HTTP wire format unchanged. Custom bean overrides for `LofiController` need to accept the new `BuildProperties` and two `@Value` constructor parameters; the bundled `lofi-backend` autoconfiguration handles this automatically.
+
+---
+
 ## [0.4.2] - 2026-04-27
 
 ### Added

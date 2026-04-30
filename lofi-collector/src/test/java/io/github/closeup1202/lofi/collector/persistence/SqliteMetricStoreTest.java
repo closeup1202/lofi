@@ -5,12 +5,14 @@ import io.github.closeup1202.lofi.core.domain.MethodMetric;
 import io.github.closeup1202.lofi.core.domain.MethodStats;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.sql.DataSource;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -20,14 +22,20 @@ import static org.assertj.core.api.Assertions.within;
 
 class SqliteMetricStoreTest {
 
+    @TempDir
+    Path tempDir;
+
     private JdbcTemplate jdbcTemplate;
     private TransactionTemplate transactionTemplate;
 
     @BeforeEach
     void setUp() {
+        // DriverManagerDataSource opens a new connection per call. SQLite's `:memory:` is
+        // connection-private — each connection gets its own empty DB — so we use a
+        // per-test temp file to keep the schema visible across saveAll/select connections.
         DriverManagerDataSource ds = new DriverManagerDataSource();
         ds.setDriverClassName("org.sqlite.JDBC");
-        ds.setUrl("jdbc:sqlite::memory:");
+        ds.setUrl("jdbc:sqlite:" + tempDir.resolve("test.db"));
         jdbcTemplate = new JdbcTemplate(ds);
         transactionTemplate = new TransactionTemplate(new DataSourceTransactionManager((DataSource) ds));
         jdbcTemplate.execute("""

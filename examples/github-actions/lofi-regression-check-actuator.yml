@@ -1,7 +1,8 @@
 # Regression check via lofi-actuator (embedded in your Spring Boot app)
 #
 # Triggers on every PR. Calls /actuator/lofi on a running staging instance of your app.
-# Fails the job (and the PR check) if any method exceeds the configured latency threshold.
+# Posts (or updates) a markdown latency-diff comment on the PR, and fails the job
+# if any method exceeds the configured latency threshold.
 #
 # Prerequisites:
 #   - Your staging app must include lofi-spring-boot-starter and expose /actuator/lofi.
@@ -10,6 +11,9 @@
 #
 # Required GitHub repository secrets:
 #   STAGING_URL       e.g. https://staging.your-app.com
+#
+# Required permissions (set on the job):
+#   pull-requests: write   — to post / update the diff comment
 #
 # If the actuator endpoint is behind basic auth or a token, add the relevant header to your
 # reverse proxy or expose it on a private network reachable from GitHub Actions runners.
@@ -23,6 +27,8 @@ on:
 jobs:
   lofi-check:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -43,11 +49,70 @@ jobs:
       - name: Install lofi-cli
         run: npm install -g @closeup1202/lofi-cli
 
-      - name: Run lofi check
+      - name: Run lofi diff
+        id: diff
+        continue-on-error: true
         run: |
-          lofi check ${{ steps.commits.outputs.base }}..${{ steps.commits.outputs.head }} \
+          lofi diff ${{ steps.commits.outputs.base }}..${{ steps.commits.outputs.head }} \
             --url "${{ secrets.STAGING_URL }}" \
             --threshold-rate 0.2 \
             --min-calls 30 \
             --stat p95 \
-            --format md
+            --format markdown \
+            > /tmp/lofi-diff.md
+
+      - name: Upsert PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs')
+            const marker = '<!-- lofi-regression-check -->'
+            let diff = ''
+            try { diff = fs.readFileSync('/tmp/lofi-diff.md', 'utf8') } catch { diff = '_lofi diff produced no output._' }
+            const body = `${marker}\n${diff}`
+            const {data: comments} = await github.rest.issues.listComments({
+              ...context.repo, issue_number: context.issue.number, per_page: 100
+            })
+            const existing = comments.find(c => c.body?.startsWith(marker))
+            if (existing) {
+              await github.rest.issues.updateComment({...context.repo, comment_id: existing.id, body})
+            } else {
+              await github.rest.issues.createComment({...context.repo, issue_number: context.issue.number, body})
+            }
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Optional: external notifications (Slack / Discord / generic webhook).
+      # Fires only when the diff step exits non-zero (= regression beyond
+      # threshold). Uncomment ONE of the blocks below and add the matching
+      # repository secret. For Slack, create an incoming webhook in your
+      # workspace; for Discord, append `/slack` to the channel webhook URL
+      # so it accepts Slack-shaped payloads.
+      # ─────────────────────────────────────────────────────────────────────
+
+      # - name: Notify Slack on regression
+      #   if: steps.diff.outcome == 'failure'
+      #   uses: slackapi/slack-github-action@v2
+      #   with:
+      #     webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #     webhook-type: incoming-webhook
+      #     payload: |
+      #       text: "lofi: regression on <${{ github.event.pull_request.html_url }}|PR #${{ github.event.pull_request.number }}> (${{ github.repository }})"
+
+      # - name: Notify generic webhook on regression
+      #   if: steps.diff.outcome == 'failure'
+      #   env:
+      #     WEBHOOK_URL: ${{ secrets.LOFI_NOTIFY_WEBHOOK_URL }}
+      #     PR_URL: ${{ github.event.pull_request.html_url }}
+      #     PR_NUM: ${{ github.event.pull_request.number }}
+      #     REPO: ${{ github.repository }}
+      #   run: |
+      #     DIFF=$(cat /tmp/lofi-diff.md)
+      #     jq -nc \
+      #       --arg pr "$PR_URL" --arg num "$PR_NUM" --arg repo "$REPO" --arg diff "$DIFF" \
+      #       '{text: ("lofi: regression on PR #" + $num + " (" + $repo + ") — " + $pr), diff: $diff}' \
+      #       | curl -fsS -X POST -H 'Content-Type: application/json' --data-binary @- "$WEBHOOK_URL"
+
+      - name: Fail if regressions exceed threshold
+        if: steps.diff.outcome == 'failure'
+        run: exit 1

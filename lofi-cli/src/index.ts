@@ -3,15 +3,18 @@ import {Command} from 'commander'
 import chalk from 'chalk'
 import {select} from '@inquirer/prompts'
 import {CommitSummary, LofiClient, StatType} from './client'
-import {OutputFormat, renderCheck, renderDiff, renderSnapshot} from './render'
+import {OutputFormat, normalizeFormat, renderCheck, renderDiff, renderSnapshot} from './render'
 import {LofiConnectionError, LofiNotFoundError, LofiUnexpectedError} from './error'
+import {kickoffAsyncRefresh, prepareUpdateBanner, shouldSkipUpdateCheck} from './update-check'
+
+const VERSION = '0.4.1'
 
 const program = new Command()
 
 program
     .name('lofi')
     .description('Method-level latency regressions between deploys')
-    .version('0.4.0')
+    .version(VERSION)
     .addHelpText('after', `
 Common Options:
   --url <url>                Target URL (default: http://localhost:8080)
@@ -19,7 +22,13 @@ Common Options:
   --threshold-ms <ms>        Absolute latency threshold in ms (diff, check)
   --threshold-rate <rate>    Relative threshold — 0.2 = 20% (diff, check)
   --min-calls <n>            Skip methods with fewer than n calls in either deploy (diff, check)
-  --format <table|json|md>   Output format (default: table)
+  --format <table|json|markdown>  Output format (default: table; "md" accepted as alias)
+  --no-update-check          Skip the once-per-day update notification
+
+Update checks:
+  Once per 24h, lofi checks the npm registry for a newer version and prints a one-line
+  notice if available. Disabled automatically in CI, when stdout is not a TTY, and for
+  --format json/markdown. To silence permanently: set LOFI_NO_UPDATE_CHECK=1.
 
   --threshold-ms and --threshold-rate are mutually exclusive.
 
@@ -64,15 +73,15 @@ async function pickCommit(commits: CommitSummary[], message: string): Promise<st
     })
 }
 
-const VALID_FORMATS: OutputFormat[] = ['table', 'json', 'markdown']
 const VALID_STATS: StatType[] = ['avg', 'p95', 'p99']
 
 function parseFormat(value: string): OutputFormat {
-    if (!VALID_FORMATS.includes(value as OutputFormat)) {
-        console.error(chalk.red(`Invalid format: "${value}". Use table, json, or markdown`))
+    const normalized = normalizeFormat(value)
+    if (normalized === null) {
+        console.error(chalk.red(`Invalid format: "${value}". Use table, json, or markdown (md)`))
         process.exit(1)
     }
-    return value as OutputFormat
+    return normalized
 }
 
 function parseStat(value: string): StatType {
@@ -91,7 +100,8 @@ program
     .option('--threshold-rate <rate>', 'relative threshold (0.2 = 20%)', parseFloat)
     .option('--stat <stat>', 'latency stat to compare: avg, p95, p99', parseStat, 'avg' as StatType)
     .option('--min-calls <n>', 'skip methods with fewer than n calls in either deploy', parseInt)
-    .option('--format <format>', 'output format: table, json, markdown', parseFormat, 'table' as OutputFormat)
+    .option('--format <format>', 'output format: table, json, markdown (md)', parseFormat, 'table' as OutputFormat)
+    .option('--no-update-check', 'skip the once-per-day update notification')
     .action(async (range: string | undefined, options: {
         url: string
         thresholdMs?: number
@@ -147,6 +157,7 @@ program
     .command('snapshot [commitHash]')
     .description('Show metrics for a specific deploy')
     .option('--url <url>', 'server base url', 'http://localhost:8080')
+    .option('--no-update-check', 'skip the once-per-day update notification')
     .action(async (commitHash: string | undefined, options: { url: string }) => {
         try {
             const client = new LofiClient(options.url)
@@ -171,7 +182,8 @@ program
     .option('--threshold-rate <rate>', 'relative threshold (0.2 = 20%)', parseFloat)
     .option('--stat <stat>', 'latency stat to compare: avg, p95, p99', parseStat, 'avg' as StatType)
     .option('--min-calls <n>', 'skip methods with fewer than n calls in either deploy', parseInt)
-    .option('--format <format>', 'output format: table, json, markdown', parseFormat, 'table' as OutputFormat)
+    .option('--format <format>', 'output format: table, json, markdown (md)', parseFormat, 'table' as OutputFormat)
+    .option('--no-update-check', 'skip the once-per-day update notification')
     .action(async (range: string | undefined, options: {
         url: string
         thresholdMs?: number
@@ -240,6 +252,21 @@ program
             handleError(err)
         }
     })
+
+// Update-check banner (once per 24h, opt-out friendly).
+// Banner is computed up-front from the local cache and printed at process exit, so the
+// command's own output stays first. The async refresh fires in the background; if it
+// completes before the process exits it populates the cache for the next run.
+if (!shouldSkipUpdateCheck(process.env, process.argv.slice(2), !!process.stdout.isTTY)) {
+    const banner = prepareUpdateBanner(VERSION)
+    if (banner) {
+        process.on('exit', () => {
+            console.log()
+            console.log(chalk.yellow(banner))
+        })
+    }
+    kickoffAsyncRefresh()
+}
 
 program.parseAsync(process.argv).catch((err) => {
     console.error(err)

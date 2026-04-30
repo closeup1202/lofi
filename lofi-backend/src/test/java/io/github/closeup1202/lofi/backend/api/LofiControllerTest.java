@@ -10,8 +10,10 @@ import io.github.closeup1202.lofi.backend.service.LofiQueryService;
 import io.github.closeup1202.lofi.core.domain.*;
 import io.github.closeup1202.lofi.core.view.DeploySnapshotView;
 import io.github.closeup1202.lofi.core.view.MethodStatsView;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
@@ -30,7 +32,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(LofiController.class)
-@TestPropertySource(properties = "lofi.backend.api-key=test-api-key")
+@TestPropertySource(properties = {
+        "lofi.backend.api-key=test-api-key",
+        "lofi.backend.retention-commits=50",
+        "lofi.backend.regression-threshold=0.2"
+})
 class LofiControllerTest {
 
     private static final String API_KEY = "test-api-key";
@@ -46,6 +52,25 @@ class LofiControllerTest {
 
     @MockitoBean
     private LofiCommandService commandService;
+
+    @MockitoBean
+    private BuildProperties buildProperties;
+
+    @BeforeEach
+    void stubBuildProperties() {
+        given(buildProperties.getName()).willReturn("lofi-backend");
+        given(buildProperties.getVersion()).willReturn("0.4.3");
+    }
+
+    @Test
+    void version_shouldReturn200WithBuildInfo() throws Exception {
+        mockMvc.perform(get("/lofi/version"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.appName").value("lofi-backend"))
+                .andExpect(jsonPath("$.appVersion").value("0.4.3"))
+                .andExpect(jsonPath("$.retentionCommits").value(50))
+                .andExpect(jsonPath("$.regressionThreshold").value(0.2));
+    }
 
     @Test
     void commits_shouldReturn200WithList() throws Exception {
