@@ -8,6 +8,13 @@
 #   - Your staging app must include lofi-spring-boot-starter and expose /actuator/lofi.
 #   - The PR's HEAD commit must already be deployed to staging when this runs (e.g. via a
 #     preview deploy step earlier in your pipeline).
+#   - The HEAD commit must have received meaningful traffic on staging — at least
+#     `--min-calls` samples for the methods you care about. A fresh deploy with no
+#     traffic produces zero metric rows for HEAD, every method gets filtered out by
+#     `--min-calls`, and the diff silently passes (false negative). Generate load
+#     before this job runs (k6 / JMeter / e2e suite / mirrored prod traffic), and
+#     leave a small wait so the in-process MetricBuffer flushes to SQLite. See the
+#     commented-out "Generate traffic" and "Wait for buffer flush" steps below.
 #
 # Required GitHub repository secrets:
 #   STAGING_URL       e.g. https://staging.your-app.com
@@ -48,6 +55,30 @@ jobs:
 
       - name: Install lofi-cli
         run: npm install -g @closeup1202/lofi-cli
+
+      # ─────────────────────────────────────────────────────────────────────
+      # Generate traffic against HEAD on staging.
+      #
+      # Without this step (or equivalent traffic from another source — mirrored
+      # prod traffic, scheduled smoke tests, e2e suite running pre-merge) the
+      # HEAD commit has zero recorded calls, every method is filtered out by
+      # `--min-calls`, and the diff reports "no regressions" regardless of
+      # actual latency. Pick whichever load generator matches your stack.
+      #
+      # Example with k6 — replace ./load/smoke.js with your own scenario that
+      # exercises the methods you want covered. Aim for at least
+      # (--min-calls × number_of_methods) total calls.
+      # ─────────────────────────────────────────────────────────────────────
+
+      # - name: Generate traffic against HEAD
+      #   uses: grafana/setup-k6-action@v1
+      # - run: k6 run --env BASE_URL=${{ secrets.STAGING_URL }} ./load/smoke.js
+
+      # MetricBuffer flushes to SQLite on a schedule (default a few seconds) or
+      # on size threshold. Give it a moment after traffic stops so the last
+      # batch lands before /actuator/lofi is queried.
+      # - name: Wait for buffer flush
+      #   run: sleep 15
 
       - name: Run lofi diff
         id: diff

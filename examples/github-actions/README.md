@@ -48,6 +48,37 @@ PR opened ─► GitHub Actions runs lofi-regression-check
 The check is **purely a query** — it does not write metrics. Your production or staging
 deploys must already have ingested data for both commits before the check runs.
 
+## ⚠️ Traffic prerequisite (most common pitfall)
+
+`lofi diff` compares **observed** latency between two commits. If the HEAD commit
+has been deployed but has not yet served any requests, there are zero metric rows
+for it, every method gets filtered out by `--min-calls`, and the diff reports
+"no regressions" — a **false negative** that lets a real regression merge.
+
+You need to make sure HEAD has traffic before this job queries it. Pick one:
+
+- **Synthetic load** — run k6 / JMeter / Locust against staging after deploy.
+  Aim for at least `--min-calls × number_of_methods` total calls covering the
+  paths you care about. The actuator example includes a commented-out k6 step.
+- **e2e / smoke suite** — if you already run end-to-end tests against staging
+  pre-merge, schedule them before the lofi check and let their traffic supply
+  the samples.
+- **Mirrored production traffic** — Envoy / NGINX traffic shadowing into
+  staging means HEAD gets real traffic for free; just leave a soak window
+  (long enough to clear `--min-calls`) before the check runs.
+
+In **actuator mode**, after traffic stops, allow ~10–30s for `MetricBuffer` to
+flush in-process metrics to SQLite before querying `/actuator/lofi`. The
+buffer flushes on a schedule and on a size threshold, but the last partial
+batch only lands on the next tick.
+
+In **backend mode**, the equivalent delay is the OTel exporter's batch interval
+plus network round-trip — usually a few seconds.
+
+If `--min-calls` is too aggressive for a small staging environment, lower it
+(e.g. `--min-calls 10`) — but be aware that smaller samples mean noisier p95
+and a higher false-positive rate.
+
 ## What the PR comment looks like
 
 ```

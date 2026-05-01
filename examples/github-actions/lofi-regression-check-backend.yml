@@ -14,6 +14,12 @@
 #   - Read endpoints (/lofi, /lofi/{hash}, /lofi/diff) do not require an API key.
 #   - This workflow only consumes data; it does not ingest. Ingestion is done by your
 #     production/staging deploys via lofi-otelcol.
+#   - The HEAD commit must already have ingested traffic in the backend (via the
+#     production/staging pipeline) — at least `--min-calls` samples per method.
+#     If HEAD has just been deployed but no requests have hit it yet, every method
+#     gets filtered out by `--min-calls` and the diff silently passes. Either run
+#     this job after a soak window, or generate synthetic load before it (see the
+#     actuator example workflow for a k6 step that maps cleanly here too).
 
 name: lofi regression check (backend mode)
 
